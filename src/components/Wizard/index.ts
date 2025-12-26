@@ -1,0 +1,1 @@
+export { default as WizardStep6 } from './WizardStep6';
