@@ -14,7 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      evaluaciones: {
+        Row: {
+          analisis_ia: Json | null
+          cita_agendada_at: string | null
+          created_at: string
+          cuestionario_clinico: Json | null
+          dentalink_patient_id: string | null
+          email: string
+          estado_evaluacion: string
+          fecha_nacimiento: string | null
+          id: string
+          imagenes_urls: string[] | null
+          monto_pagado: number | null
+          motivo_consulta: string | null
+          nombre: string
+          payment_id: string | null
+          payment_status: string
+          resumen_ia: string | null
+          rut: string | null
+          ruta_sugerida: string | null
+          telefono: string | null
+          tipo_ruta: string
+          updated_at: string
+        }
+        Insert: {
+          analisis_ia?: Json | null
+          cita_agendada_at?: string | null
+          created_at?: string
+          cuestionario_clinico?: Json | null
+          dentalink_patient_id?: string | null
+          email: string
+          estado_evaluacion?: string
+          fecha_nacimiento?: string | null
+          id?: string
+          imagenes_urls?: string[] | null
+          monto_pagado?: number | null
+          motivo_consulta?: string | null
+          nombre: string
+          payment_id?: string | null
+          payment_status?: string
+          resumen_ia?: string | null
+          rut?: string | null
+          ruta_sugerida?: string | null
+          telefono?: string | null
+          tipo_ruta: string
+          updated_at?: string
+        }
+        Update: {
+          analisis_ia?: Json | null
+          cita_agendada_at?: string | null
+          created_at?: string
+          cuestionario_clinico?: Json | null
+          dentalink_patient_id?: string | null
+          email?: string
+          estado_evaluacion?: string
+          fecha_nacimiento?: string | null
+          id?: string
+          imagenes_urls?: string[] | null
+          monto_pagado?: number | null
+          motivo_consulta?: string | null
+          nombre?: string
+          payment_id?: string | null
+          payment_status?: string
+          resumen_ia?: string | null
+          rut?: string | null
+          ruta_sugerida?: string | null
+          telefono?: string | null
+          tipo_ruta?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
