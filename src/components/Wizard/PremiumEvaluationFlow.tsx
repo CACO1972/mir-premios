@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CreditCard, Calendar, CheckCircle, Loader2, Shield, Info } from 'lucide-react';
+import { CreditCard, Calendar, CheckCircle, Loader2, Shield, Info, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import type { RouteType, EvaluacionData } from './types';
@@ -23,6 +23,74 @@ const PremiumEvaluationFlow = ({
   const [step, setStep] = useState<'confirm' | 'payment' | 'schedule'>('confirm');
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentComplete, setPaymentComplete] = useState(false);
+  const [mpCheckoutUrl, setMpCheckoutUrl] = useState<string | null>(null);
+  const [checkingPayment, setCheckingPayment] = useState(false);
+
+  // Check for payment return from MP
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    const returnedEvalId = urlParams.get('evaluation_id');
+    
+    if (paymentStatus && returnedEvalId === evaluationId) {
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      if (paymentStatus === 'success') {
+        setCheckingPayment(true);
+        checkPaymentStatus();
+      } else if (paymentStatus === 'failure') {
+        onError('El pago fue rechazado. Por favor, intenta con otro método de pago.');
+        setStep('payment');
+      } else if (paymentStatus === 'pending') {
+        setStep('payment');
+      }
+    }
+  }, [evaluationId]);
+
+  const checkPaymentStatus = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('evaluaciones')
+        .select('payment_status')
+        .eq('id', evaluationId)
+        .maybeSingle();
+
+      if (error) throw error;
+      
+      if (data?.payment_status === 'approved') {
+        setPaymentComplete(true);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setStep('schedule');
+      } else {
+        // Poll a few more times in case webhook is slow
+        let attempts = 0;
+        const pollInterval = setInterval(async () => {
+          attempts++;
+          const { data: pollData } = await supabase
+            .from('evaluaciones')
+            .select('payment_status')
+            .eq('id', evaluationId)
+            .maybeSingle();
+          
+          if (pollData?.payment_status === 'approved') {
+            clearInterval(pollInterval);
+            setPaymentComplete(true);
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            setStep('schedule');
+          } else if (attempts >= 5) {
+            clearInterval(pollInterval);
+            setStep('payment');
+          }
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Error checking payment:', err);
+      setStep('payment');
+    } finally {
+      setCheckingPayment(false);
+    }
+  };
 
   // Pricing based on route type
   const isExistingPatient = routeType === 'paciente_antiguo';
@@ -36,46 +104,38 @@ const PremiumEvaluationFlow = ({
   const handleConfirm = async () => {
     setIsProcessing(true);
     try {
-      await supabase
-        .from('evaluaciones')
-        .update({ estado_evaluacion: 'pago_pendiente' })
-        .eq('id', evaluationId);
+      // Create Mercado Pago preference
+      const { data, error } = await supabase.functions.invoke('create-mp-preference', {
+        body: {
+          evaluation_id: evaluationId,
+          amount: price,
+          description: isExistingPatient 
+            ? 'Copago Evaluación Premium - Paciente Miró' 
+            : 'Evaluación Premium Miró',
+          payer_email: evaluacionData.email || '',
+          payer_name: evaluacionData.nombre || '',
+        }
+      });
+
+      if (error) throw error;
       
-      setStep('payment');
+      if (data?.init_point) {
+        setMpCheckoutUrl(data.init_point);
+        setStep('payment');
+      } else {
+        throw new Error('No checkout URL received');
+      }
     } catch (err) {
-      console.error('Error updating evaluation:', err);
-      onError('Error al procesar. Por favor, intenta de nuevo.');
+      console.error('Error creating payment:', err);
+      onError('Error al preparar el pago. Por favor, intenta de nuevo.');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handlePayment = async () => {
-    setIsProcessing(true);
-    try {
-      // Simulate payment processing (Mercado Pago integration placeholder)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const paymentId = `mp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      await supabase
-        .from('evaluaciones')
-        .update({ 
-          payment_status: 'approved',
-          payment_id: paymentId,
-          monto_pagado: price,
-          estado_evaluacion: 'pago_completado'
-        })
-        .eq('id', evaluationId);
-
-      setPaymentComplete(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setStep('schedule');
-    } catch (err) {
-      console.error('Error processing payment:', err);
-      onError('Error en el pago. Por favor, intenta de nuevo.');
-    } finally {
-      setIsProcessing(false);
+  const handleOpenCheckout = () => {
+    if (mpCheckoutUrl) {
+      window.location.href = mpCheckoutUrl;
     }
   };
 
@@ -228,6 +288,12 @@ const PremiumEvaluationFlow = ({
                 <h3 className="font-serif text-xl text-foreground mb-2">¡Pago Exitoso!</h3>
                 <p className="text-cream-muted">Tu pago ha sido procesado correctamente</p>
               </div>
+            ) : checkingPayment ? (
+              <div className="text-center py-8">
+                <Loader2 className="w-12 h-12 text-gold mx-auto mb-4 animate-spin" />
+                <h3 className="font-serif text-xl text-foreground mb-2">Verificando pago...</h3>
+                <p className="text-cream-muted">Estamos confirmando tu transacción</p>
+              </div>
             ) : (
               <>
                 <div className="text-center mb-6">
@@ -250,21 +316,12 @@ const PremiumEvaluationFlow = ({
                 </div>
 
                 <Button
-                  onClick={handlePayment}
-                  disabled={isProcessing}
+                  onClick={handleOpenCheckout}
+                  disabled={!mpCheckoutUrl}
                   className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 h-12"
                 >
-                  {isProcessing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Procesando pago...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="w-4 h-4 mr-2" />
-                      Pagar {priceFormatted}
-                    </>
-                  )}
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Ir a Mercado Pago
                 </Button>
               </>
             )}
