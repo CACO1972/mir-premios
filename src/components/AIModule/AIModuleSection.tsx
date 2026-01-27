@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { MapPin, MessageCircle, GitBranch } from 'lucide-react';
+import RxScannerAnimation from './RxScannerAnimation';
 
 const modules = [
   {
@@ -39,7 +40,7 @@ const AIModuleSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16 md:mb-20"
+          className="text-center mb-12 md:mb-16"
         >
           <h2
             id="ai-module-heading"
@@ -53,6 +54,17 @@ const AIModuleSection = () => {
             Tecnología al servicio de decisiones claras y tranquilas
           </p>
         </motion.header>
+
+        {/* RX Scanner Animation */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="mb-20 md:mb-28"
+        >
+          <RxScannerAnimation />
+        </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
           {modules.map((module, index) => (
