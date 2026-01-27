@@ -11,27 +11,50 @@ import WizardComplete from './WizardComplete';
 import type { RouteType, RutaSugerida, EvaluacionData, WizardState } from './types';
 import { initialWizardState } from './types';
 
+interface ToothFinding {
+  piece: string;
+  x: number;
+  y: number;
+  status: 'green' | 'yellow' | 'red';
+  diagnosis?: string;
+  depth?: string;
+  treatment?: string;
+}
+
+interface ExtendedWizardState extends WizardState {
+  imageUrls: string[];
+  findings: ToothFinding[];
+}
+
+const initialExtendedState: ExtendedWizardState = {
+  ...initialWizardState,
+  imageUrls: [],
+  findings: []
+};
+
 const WizardSection = () => {
-  const [state, setState] = useState<WizardState>(initialWizardState);
+  const [state, setState] = useState<ExtendedWizardState>(initialExtendedState);
 
   const handleSelectRoute = useCallback((route: RouteType) => {
     setState(prev => ({ ...prev, routeType: route, currentStep: 1 }));
   }, []);
 
-  const handleQuestionnaireComplete = useCallback((evaluationId: string, data: Partial<EvaluacionData>) => {
+  const handleQuestionnaireComplete = useCallback((evaluationId: string, data: Partial<EvaluacionData>, imageUrls: string[]) => {
     setState(prev => ({ 
       ...prev, 
       evaluationId, 
       evaluacionData: data,
+      imageUrls,
       currentStep: 2 
     }));
   }, []);
 
-  const handleIAComplete = useCallback((rutaSugerida: RutaSugerida, resumen: string) => {
+  const handleIAComplete = useCallback((rutaSugerida: RutaSugerida, resumen: string, findings: ToothFinding[]) => {
     setState(prev => ({ 
       ...prev, 
       rutaSugerida, 
       resumenIA: resumen,
+      findings,
       currentStep: 3 
     }));
   }, []);
@@ -49,12 +72,11 @@ const WizardSection = () => {
       ...prev, 
       evaluationId, 
       evaluacionData: data,
-      currentStep: 4 // Skip to premium evaluation
+      currentStep: 4
     }));
   }, []);
 
   const handleControlOnly = useCallback(() => {
-    // Redirect to scheduling for control visit
     window.open('https://wa.me/56912345678?text=Hola, soy paciente Miró y quiero agendar un control', '_blank');
   }, []);
 
@@ -68,8 +90,7 @@ const WizardSection = () => {
   }, []);
 
   const handleReset = useCallback(() => {
-    setState(initialWizardState);
-    // Scroll to top of wizard
+    setState(initialExtendedState);
     document.getElementById('wizard')?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
@@ -86,7 +107,7 @@ const WizardSection = () => {
       );
     }
 
-    // Segunda opinion and internacional - treat same as new for now
+    // Segunda opinion and internacional
     if ((state.routeType === 'segunda_opinion' || state.routeType === 'internacional') && state.currentStep === 1) {
       return (
         <QuestionnaireStep
@@ -115,6 +136,7 @@ const WizardSection = () => {
           <IAScreeningStep
             evaluationId={state.evaluationId!}
             evaluacionData={state.evaluacionData}
+            imageUrls={state.imageUrls}
             onComplete={handleIAComplete}
             onError={handleError}
           />
