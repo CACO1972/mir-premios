@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Upload, Loader2 } from 'lucide-react';
+import { ArrowRight, Upload, Loader2, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,12 +12,16 @@ import type { RouteType, EvaluacionData } from './types';
 
 interface QuestionnaireStepProps {
   routeType: RouteType;
-  onComplete: (evaluationId: string, data: Partial<EvaluacionData>) => void;
+  onComplete: (evaluationId: string, data: Partial<EvaluacionData>, imageUrls: string[]) => void;
   onError: (error: string) => void;
 }
 
 const QuestionnaireStep = ({ routeType, onComplete, onError }: QuestionnaireStepProps) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<{ file: File; preview: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
@@ -27,6 +31,65 @@ const QuestionnaireStep = ({ routeType, onComplete, onError }: QuestionnaireStep
     ultima_visita: '',
     condiciones_medicas: ''
   });
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newImages: { file: File; preview: string }[] = [];
+    
+    for (let i = 0; i < files.length && uploadedImages.length + newImages.length < 5; i++) {
+      const file = files[i];
+      if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+        newImages.push({
+          file,
+          preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : ''
+        });
+      }
+    }
+    
+    setUploadedImages(prev => [...prev, ...newImages]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => {
+      const newImages = [...prev];
+      if (newImages[index].preview) {
+        URL.revokeObjectURL(newImages[index].preview);
+      }
+      newImages.splice(index, 1);
+      return newImages;
+    });
+  };
+
+  const uploadImages = async (evaluationId: string): Promise<string[]> => {
+    const urls: string[] = [];
+    
+    for (const { file } of uploadedImages) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${evaluationId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('dental-images')
+        .upload(fileName, file);
+      
+      if (uploadError) {
+        console.error('Error uploading image:', uploadError);
+        continue;
+      }
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('dental-images')
+        .getPublicUrl(fileName);
+      
+      urls.push(publicUrl);
+    }
+    
+    return urls;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,18 +128,34 @@ const QuestionnaireStep = ({ routeType, onComplete, onError }: QuestionnaireStep
 
       if (error) throw error;
 
-      // Update estado to cuestionario_completado
-      await supabase
-        .from('evaluaciones')
-        .update({ estado_evaluacion: 'cuestionario_completado' })
-        .eq('id', data.id);
+      // Upload images if any
+      let imageUrls: string[] = [];
+      if (uploadedImages.length > 0) {
+        setUploadingImages(true);
+        imageUrls = await uploadImages(data.id);
+        
+        // Update evaluation with image URLs
+        await supabase
+          .from('evaluaciones')
+          .update({ 
+            imagenes_urls: imageUrls,
+            estado_evaluacion: 'cuestionario_completado' 
+          })
+          .eq('id', data.id);
+      } else {
+        await supabase
+          .from('evaluaciones')
+          .update({ estado_evaluacion: 'cuestionario_completado' })
+          .eq('id', data.id);
+      }
 
-      onComplete(data.id, evaluacionData);
+      onComplete(data.id, evaluacionData, imageUrls);
     } catch (err) {
       console.error('Error creating evaluation:', err);
       onError('Error al guardar el cuestionario. Por favor, intenta de nuevo.');
     } finally {
       setIsLoading(false);
+      setUploadingImages(false);
     }
   };
 
@@ -155,24 +234,14 @@ const QuestionnaireStep = ({ routeType, onComplete, onError }: QuestionnaireStep
           <RadioGroup
             value={formData.dolor_actual}
             onValueChange={(value) => setFormData({ ...formData, dolor_actual: value })}
-            className="flex gap-4"
+            className="flex flex-wrap gap-4"
           >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="no" id="dolor-no" />
-              <Label htmlFor="dolor-no" className="cursor-pointer">No</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="leve" id="dolor-leve" />
-              <Label htmlFor="dolor-leve" className="cursor-pointer">Leve</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="moderado" id="dolor-moderado" />
-              <Label htmlFor="dolor-moderado" className="cursor-pointer">Moderado</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="intenso" id="dolor-intenso" />
-              <Label htmlFor="dolor-intenso" className="cursor-pointer">Intenso</Label>
-            </div>
+            {['No', 'Leve', 'Moderado', 'Intenso'].map((option) => (
+              <div key={option} className="flex items-center space-x-2">
+                <RadioGroupItem value={option.toLowerCase()} id={`dolor-${option.toLowerCase()}`} />
+                <Label htmlFor={`dolor-${option.toLowerCase()}`} className="cursor-pointer">{option}</Label>
+              </div>
+            ))}
           </RadioGroup>
         </div>
 
@@ -209,26 +278,76 @@ const QuestionnaireStep = ({ routeType, onComplete, onError }: QuestionnaireStep
           />
         </div>
 
-        {/* Image upload placeholder */}
-        <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-          <Upload className="w-8 h-8 text-cream-muted mx-auto mb-2" />
+        {/* Image upload section */}
+        <div className="space-y-3">
+          <Label>Sube fotos de tu boca o radiografías (opcional)</Label>
           <p className="text-cream-muted text-sm">
-            Sube fotos de tu boca o radiografías (opcional)
+            Las imágenes permiten un análisis más preciso con nuestra IA
           </p>
-          <p className="text-muted-foreground text-xs mt-1">
-            JPG, PNG o PDF hasta 10MB
-          </p>
+          
+          {/* Uploaded images preview */}
+          {uploadedImages.length > 0 && (
+            <div className="flex flex-wrap gap-3 mb-3">
+              {uploadedImages.map((img, index) => (
+                <div key={index} className="relative group">
+                  <div className="w-20 h-20 rounded-lg border border-border overflow-hidden bg-card">
+                    {img.preview ? (
+                      <img 
+                        src={img.preview} 
+                        alt={`Preview ${index + 1}`} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ImageIcon className="w-8 h-8 text-cream-muted" />
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {uploadedImages.length < 5 && (
+            <div 
+              className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-gold/50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="w-8 h-8 text-cream-muted mx-auto mb-2" />
+              <p className="text-cream-muted text-sm">
+                Haz clic o arrastra imágenes aquí
+              </p>
+              <p className="text-muted-foreground text-xs mt-1">
+                JPG, PNG o PDF hasta 10MB (máx. 5 archivos)
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,application/pdf"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </div>
+          )}
         </div>
 
         <Button
           type="submit"
-          disabled={isLoading}
+          disabled={isLoading || uploadingImages}
           className="w-full bg-gradient-gold text-primary-foreground hover:opacity-90 h-12"
         >
-          {isLoading ? (
+          {isLoading || uploadingImages ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Guardando...
+              {uploadingImages ? 'Subiendo imágenes...' : 'Guardando...'}
             </>
           ) : (
             <>
