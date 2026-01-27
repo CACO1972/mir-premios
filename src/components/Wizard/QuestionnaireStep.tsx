@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import type { RouteType, EvaluacionData } from './types';
 
 interface QuestionnaireStepProps {
@@ -55,7 +56,7 @@ const QuestionnaireStep = ({ routeType, onComplete, onError }: QuestionnaireStep
           telefono: evaluacionData.telefono,
           tipo_ruta: evaluacionData.tipo_ruta!,
           motivo_consulta: evaluacionData.motivo_consulta,
-          cuestionario_clinico: evaluacionData.cuestionario_clinico,
+          cuestionario_clinico: evaluacionData.cuestionario_clinico as Json,
           payment_status: 'pending' as const,
           estado_evaluacion: 'iniciada' as const
         }])
