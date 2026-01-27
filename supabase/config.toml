@@ -32,3 +32,9 @@ enable_confirmations = false
 
 [functions.analyze-dental]
 verify_jwt = false
+
+[functions.create-mp-preference]
+verify_jwt = false
+
+[functions.mp-webhook]
+verify_jwt = false
