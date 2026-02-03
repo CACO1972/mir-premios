@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.mp-webhook]
 verify_jwt = false
+
+[functions.dentalink-integration]
+verify_jwt = false
