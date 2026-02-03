@@ -272,8 +272,8 @@ const PremiumEvaluationFlow = ({
           <ScheduleStep
             evaluationId={evaluationId}
             patientId={dentalinkPatientId}
-            isProcessing={isProcessing}
-            onSchedule={handleSchedule}
+            rutaSugerida={evaluacionData.ruta_sugerida}
+            onComplete={onComplete}
           />
         )}
       </div>
