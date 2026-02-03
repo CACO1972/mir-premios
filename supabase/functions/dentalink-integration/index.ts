@@ -24,6 +24,7 @@ interface ScheduleAppointmentRequest {
   time: string; // HH:mm format
   duration_minutes?: number;
   professional_id?: string;
+  branch_id?: string;
   service_id?: string;
   notes?: string;
 }
@@ -66,7 +67,7 @@ serve(async (req) => {
 
         const patientData: Record<string, unknown> = {
           nombre: firstName,
-          apellido: lastName || firstName, // Dentalink requires apellido
+          apellidos: lastName || firstName, // Dentalink requires apellidos (plural)
           email: body.email,
         };
 
@@ -160,16 +161,59 @@ serve(async (req) => {
       if (body.action === 'schedule-appointment') {
         console.log('Scheduling appointment for patient:', body.patient_id);
 
+        // Get a dentist/professional ID and branch ID if not provided
+        let professionalId = body.professional_id;
+        let branchId = body.branch_id;
+        
+        if (!professionalId || !branchId) {
+          console.log('Fetching available dentists...');
+          try {
+            // Try /dentistas endpoint first (required for id_dentista field)
+            const profResponse = await fetch(`${DENTALINK_API_URL}/dentistas`, {
+              method: 'GET',
+              headers,
+            });
+            const profResponseText = await profResponse.text();
+            console.log('Dentistas response:', profResponse.status);
+            
+            if (profResponse.ok) {
+              const profData = JSON.parse(profResponseText);
+              if (profData.data && profData.data.length > 0) {
+                // Find first enabled dentist (habilitado = 1)
+                const enabledDentist = profData.data.find((d: { habilitado: number }) => d.habilitado === 1) || profData.data[0];
+                professionalId = professionalId || enabledDentist.id.toString();
+                branchId = branchId || enabledDentist.id_sucursal?.toString() || '1';
+                console.log('Using dentist ID:', professionalId, 'Branch ID:', branchId);
+              } else {
+                console.log('No dentists found in response');
+              }
+            }
+          } catch (err) {
+            console.log('Could not fetch dentists:', err);
+          }
+        }
+
+        // If still no professional ID, the appointment will fail - Dentalink requires id_dentista
+        if (!professionalId) {
+          console.log('WARNING: No professional ID available. Dentalink requires id_dentista for appointments.');
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'No se pudo obtener un profesional disponible para agendar la cita. Por favor, contacte a la clínica directamente.',
+            requires_manual_scheduling: true,
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
         const appointmentData: Record<string, unknown> = {
           id_paciente: parseInt(body.patient_id),
+          id_dentista: parseInt(professionalId),
+          id_sucursal: parseInt(branchId || '1'),
           fecha: body.date, // YYYY-MM-DD
           hora_inicio: body.time, // HH:mm
           duracion: body.duration_minutes || 60,
         };
-
-        if (body.professional_id) {
-          appointmentData.id_profesional = parseInt(body.professional_id);
-        }
 
         if (body.service_id) {
           appointmentData.id_tratamiento = parseInt(body.service_id);
