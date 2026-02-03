@@ -1,5 +1,5 @@
 export type RouteType = 'paciente_nuevo' | 'paciente_antiguo' | 'segunda_opinion' | 'internacional';
-export type RutaSugerida = 'implantes' | 'ortodoncia' | 'caries' | 'bruxismo';
+export type RutaSugerida = 'implantes' | 'ortodoncia' | 'caries' | 'bruxismo' | 'estetica' | 'dentofacial';
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'refunded';
 export type EstadoEvaluacion = 'iniciada' | 'cuestionario_completado' | 'ia_analizada' | 'pago_pendiente' | 'pago_completado' | 'cita_agendada' | 'completada' | 'cancelada';
 
@@ -66,5 +66,15 @@ export const rutaExplanations: Record<RutaSugerida, { title: string; description
     title: 'Bruxismo-Sueño',
     description: 'Evaluación integral del bruxismo y su relación con el sueño.',
     features: ['Análisis de desgaste dental', 'Evaluación de patrones de sueño', 'Plan de protección personalizado']
+  },
+  estetica: {
+    title: 'Estética Dental',
+    description: 'Evaluación integral para mejorar la apariencia de tu sonrisa con tratamientos personalizados.',
+    features: ['Análisis de sonrisa digital', 'Blanqueamiento y carillas', 'Diseño de sonrisa personalizado']
+  },
+  dentofacial: {
+    title: 'Revive FACE.SMILE™',
+    description: 'Armonización dentofacial con enfoque integral en estética facial y dental.',
+    features: ['Análisis facial 3D', 'Planificación digital integrada', 'Resultados naturales y armónicos']
   }
 };
