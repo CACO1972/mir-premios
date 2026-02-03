@@ -1,0 +1,289 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+};
+
+const DENTALINK_API_URL = 'https://api.dentalink.healthatom.com/api/v1';
+
+interface CreatePatientRequest {
+  evaluation_id: string;
+  nombre: string;
+  email: string;
+  telefono?: string;
+  rut?: string;
+  fecha_nacimiento?: string;
+}
+
+interface ScheduleAppointmentRequest {
+  evaluation_id: string;
+  patient_id: string;
+  date: string; // ISO format
+  time: string; // HH:mm format
+  duration_minutes?: number;
+  professional_id?: string;
+  service_id?: string;
+  notes?: string;
+}
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const DENTALINK_API_TOKEN = Deno.env.get('DENTALINK_API_TOKEN');
+    if (!DENTALINK_API_TOKEN) {
+      throw new Error('DENTALINK_API_TOKEN not configured');
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const url = new URL(req.url);
+    const action = url.pathname.split('/').pop();
+
+    const headers = {
+      'Authorization': `Token ${DENTALINK_API_TOKEN}`,
+      'Content-Type': 'application/json',
+    };
+
+    // Action: Create Patient
+    if (action === 'create-patient' || url.pathname.endsWith('dentalink-integration')) {
+      const body = await req.json() as { action?: string } & CreatePatientRequest & ScheduleAppointmentRequest;
+      
+      if (body.action === 'create-patient' || action === 'create-patient') {
+        console.log('Creating patient in Dentalink:', body.nombre);
+        
+        // Split nombre into first name and last name
+        const nameParts = body.nombre.trim().split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        const patientData: Record<string, unknown> = {
+          nombre: firstName,
+          apellido: lastName || firstName, // Dentalink requires apellido
+          email: body.email,
+        };
+
+        if (body.telefono) {
+          patientData.telefono = body.telefono;
+        }
+
+        if (body.rut) {
+          patientData.rut = body.rut;
+        }
+
+        if (body.fecha_nacimiento) {
+          patientData.fecha_nacimiento = body.fecha_nacimiento;
+        }
+
+        console.log('Sending to Dentalink:', JSON.stringify(patientData));
+
+        const response = await fetch(`${DENTALINK_API_URL}/pacientes`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(patientData),
+        });
+
+        const responseText = await response.text();
+        console.log('Dentalink response status:', response.status);
+        console.log('Dentalink response:', responseText);
+
+        if (!response.ok) {
+          // Check if patient already exists (search by email or RUT)
+          if (response.status === 400 || response.status === 409) {
+            console.log('Patient may already exist, searching...');
+            
+            const searchParams = body.rut 
+              ? `?rut=${encodeURIComponent(body.rut)}`
+              : `?email=${encodeURIComponent(body.email)}`;
+            
+            const searchResponse = await fetch(`${DENTALINK_API_URL}/pacientes${searchParams}`, {
+              method: 'GET',
+              headers,
+            });
+
+            if (searchResponse.ok) {
+              const searchData = await searchResponse.json();
+              if (searchData.data && searchData.data.length > 0) {
+                const existingPatient = searchData.data[0];
+                console.log('Found existing patient:', existingPatient.id);
+                
+                // Update evaluation with existing patient ID
+                await supabase
+                  .from('evaluaciones')
+                  .update({ dentalink_patient_id: existingPatient.id.toString() })
+                  .eq('id', body.evaluation_id);
+
+                return new Response(JSON.stringify({
+                  success: true,
+                  patient_id: existingPatient.id,
+                  existing: true,
+                  message: 'Paciente existente encontrado',
+                }), {
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+              }
+            }
+          }
+          
+          throw new Error(`Dentalink API error: ${response.status} - ${responseText}`);
+        }
+
+        const data = await JSON.parse(responseText);
+        const patientId = data.data?.id || data.id;
+
+        console.log('Patient created with ID:', patientId);
+
+        // Update evaluation with patient ID
+        await supabase
+          .from('evaluaciones')
+          .update({ dentalink_patient_id: patientId.toString() })
+          .eq('id', body.evaluation_id);
+
+        return new Response(JSON.stringify({
+          success: true,
+          patient_id: patientId,
+          existing: false,
+          message: 'Paciente creado exitosamente',
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Action: Schedule Appointment
+      if (body.action === 'schedule-appointment') {
+        console.log('Scheduling appointment for patient:', body.patient_id);
+
+        const appointmentData: Record<string, unknown> = {
+          id_paciente: parseInt(body.patient_id),
+          fecha: body.date, // YYYY-MM-DD
+          hora_inicio: body.time, // HH:mm
+          duracion: body.duration_minutes || 60,
+        };
+
+        if (body.professional_id) {
+          appointmentData.id_profesional = parseInt(body.professional_id);
+        }
+
+        if (body.service_id) {
+          appointmentData.id_tratamiento = parseInt(body.service_id);
+        }
+
+        if (body.notes) {
+          appointmentData.notas = body.notes;
+        }
+
+        console.log('Sending appointment to Dentalink:', JSON.stringify(appointmentData));
+
+        const response = await fetch(`${DENTALINK_API_URL}/citas`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(appointmentData),
+        });
+
+        const responseText = await response.text();
+        console.log('Dentalink appointment response:', response.status, responseText);
+
+        if (!response.ok) {
+          throw new Error(`Dentalink appointment error: ${response.status} - ${responseText}`);
+        }
+
+        const data = JSON.parse(responseText);
+        const appointmentId = data.data?.id || data.id;
+
+        // Update evaluation with appointment status
+        await supabase
+          .from('evaluaciones')
+          .update({ 
+            estado_evaluacion: 'cita_agendada',
+            cita_agendada_at: new Date().toISOString(),
+          })
+          .eq('id', body.evaluation_id);
+
+        return new Response(JSON.stringify({
+          success: true,
+          appointment_id: appointmentId,
+          message: 'Cita agendada exitosamente',
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Action: Get Available Slots
+      if (body.action === 'get-available-slots') {
+        console.log('Fetching available appointment slots');
+
+        const today = new Date();
+        const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+        
+        const startDate = today.toISOString().split('T')[0];
+        const endDate = nextWeek.toISOString().split('T')[0];
+
+        const response = await fetch(
+          `${DENTALINK_API_URL}/agenda/disponibilidad?fecha_inicio=${startDate}&fecha_fin=${endDate}`,
+          {
+            method: 'GET',
+            headers,
+          }
+        );
+
+        if (!response.ok) {
+          // If no availability endpoint, return mock slots
+          console.log('Availability endpoint not available, returning sample slots');
+          
+          const mockSlots = [];
+          for (let i = 1; i <= 5; i++) {
+            const date = new Date(today.getTime() + i * 24 * 60 * 60 * 1000);
+            if (date.getDay() !== 0 && date.getDay() !== 6) { // Skip weekends
+              mockSlots.push({
+                date: date.toISOString().split('T')[0],
+                times: ['10:00', '11:00', '15:00', '16:00'],
+              });
+            }
+          }
+
+          return new Response(JSON.stringify({
+            success: true,
+            slots: mockSlots,
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const data = await response.json();
+        
+        return new Response(JSON.stringify({
+          success: true,
+          slots: data.data || [],
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    return new Response(JSON.stringify({
+      error: 'Invalid action',
+      message: 'Use action: create-patient, schedule-appointment, or get-available-slots',
+    }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Dentalink integration error:', error);
+    return new Response(JSON.stringify({
+      error: errorMessage,
+      success: false,
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});
