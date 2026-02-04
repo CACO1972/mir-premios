@@ -1,73 +1,130 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Inter:wght@300;400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Clínica Dental Miró - Premium Design System */
+/* Clínica Miró - Editorial Premium Design System with Functionality */
 
 @layer base {
   :root {
-    /* Dark premium palette */
-    --background: 220 20% 6%;
-    --foreground: 45 20% 95%;
+    /* Light mode - Editorial white */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 8%;
 
-    --card: 220 18% 10%;
-    --card-foreground: 45 20% 95%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
 
-    --popover: 220 18% 8%;
-    --popover-foreground: 45 20% 95%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 8%;
 
-    /* Gold accent as primary */
-    --primary: 43 74% 49%;
-    --primary-foreground: 220 20% 6%;
+    /* Primary - Soft black */
+    --primary: 0 0% 8%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 15% 15%;
-    --secondary-foreground: 45 20% 90%;
+    /* Secondary - Warm gray */
+    --secondary: 30 5% 96%;
+    --secondary-foreground: 0 0% 8%;
 
-    --muted: 220 15% 18%;
-    --muted-foreground: 220 10% 55%;
+    /* Muted - Lighter warm gray */
+    --muted: 30 5% 94%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 43 74% 49%;
-    --accent-foreground: 220 20% 6%;
+    /* Accent - Same as primary for consistency */
+    --accent: 30 5% 96%;
+    --accent-foreground: 0 0% 8%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 15% 20%;
-    --input: 220 15% 15%;
-    --ring: 43 74% 49%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 8%;
+
+    /* Accent gold - champagne muted */
+    --gold: 38 35% 58%;
+    --gold-light: 38 40% 68%;
+    --gold-dark: 38 30% 45%;
+    --gold-muted: 38 25% 70%;
+
+    /* Legacy tokens for compatibility */
+    --charcoal: 0 0% 6%;
+    --charcoal-light: 0 0% 12%;
+    --cream: 30 10% 96%;
+    --cream-muted: 0 0% 45%;
 
     --radius: 0.5rem;
 
-    /* Custom tokens */
-    --gold: 43 74% 49%;
-    --gold-light: 43 80% 65%;
-    --gold-dark: 43 70% 35%;
-    --charcoal: 220 20% 6%;
-    --charcoal-light: 220 18% 12%;
-    --cream: 45 20% 95%;
-    --cream-muted: 45 15% 75%;
-
     /* Gradients */
-    --gradient-gold: linear-gradient(135deg, hsl(43 74% 49%), hsl(43 80% 60%));
-    --gradient-dark: linear-gradient(180deg, hsl(220 20% 6%), hsl(220 18% 10%));
-    --gradient-overlay: linear-gradient(180deg, transparent 0%, hsl(220 20% 6% / 0.9) 100%);
+    --gradient-gold: linear-gradient(135deg, hsl(38 35% 58%), hsl(38 40% 68%));
+    --gradient-dark: linear-gradient(180deg, hsl(0 0% 6%), hsl(0 0% 10%));
+    --gradient-overlay: linear-gradient(180deg, transparent 0%, hsl(0 0% 6% / 0.9) 100%);
 
     /* Shadows */
-    --shadow-gold: 0 4px 30px hsl(43 74% 49% / 0.15);
-    --shadow-card: 0 8px 32px hsl(0 0% 0% / 0.3);
+    --shadow-gold: 0 4px 30px hsl(38 35% 58% / 0.15);
+    --shadow-card: 0 8px 32px hsl(0 0% 0% / 0.1);
 
-    /* Typography */
-    --font-serif: 'Playfair Display', Georgia, serif;
-    --font-sans: 'Inter', system-ui, sans-serif;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
 
-    --sidebar-background: 220 18% 8%;
-    --sidebar-foreground: 45 20% 95%;
-    --sidebar-primary: 43 74% 49%;
-    --sidebar-primary-foreground: 220 20% 6%;
-    --sidebar-accent: 220 15% 15%;
-    --sidebar-accent-foreground: 45 20% 90%;
-    --sidebar-border: 220 15% 20%;
-    --sidebar-ring: 43 74% 49%;
+  .dark {
+    /* Dark mode - Premium charcoal */
+    --background: 0 0% 6%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 0 0% 95%;
+    --primary-foreground: 0 0% 4%;
+
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 0 0% 12%;
+    --accent-foreground: 0 0% 95%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 0 0% 95%;
+
+    /* Accent gold - champagne muted (dark mode) */
+    --gold: 38 50% 55%;
+    --gold-light: 38 55% 65%;
+    --gold-dark: 38 40% 40%;
+    --gold-muted: 38 35% 50%;
+
+    /* Legacy tokens */
+    --cream: 30 10% 96%;
+    --cream-muted: 0 0% 60%;
+
+    --shadow-gold: 0 4px 30px hsl(38 50% 55% / 0.2);
+    --shadow-card: 0 8px 32px hsl(0 0% 0% / 0.4);
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
 
@@ -76,13 +133,112 @@
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: var(--font-sans);
+    overflow-x: hidden;
+    font-family: 'Inter', sans-serif;
+    font-weight: 300;
+    letter-spacing: 0.01em;
+  }
+
+  /* Hide scrollbar globally */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-serif);
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+  }
+
+  /* Editorial typography scale */
+  /* Institutional headline - maximum visual authority */
+  .display-institutional {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2.75rem, 14vw, 16rem);
+    line-height: 0.95;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+  }
+
+  @media (min-width: 640px) {
+    .display-institutional {
+      font-size: clamp(4rem, 16vw, 16rem);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .display-institutional {
+      font-size: clamp(5rem, 18vw, 16rem);
+    }
+  }
+
+  .display-massive {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(4.5rem, 16vw, 14rem);
+    line-height: 1.05;
+    font-weight: 300;
+    letter-spacing: 0.01em;
+  }
+
+  .display-huge {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(3.5rem, 12vw, 10rem);
+    line-height: 0.9;
+    font-weight: 300;
+    letter-spacing: -0.03em;
+  }
+
+  .display-large {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    line-height: 1;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+  }
+
+  .display-medium {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(1.75rem, 4vw, 3rem);
+    line-height: 1.15;
+    font-weight: 300;
+    letter-spacing: -0.01em;
+  }
+
+  .body-large {
+    font-family: 'Inter', sans-serif;
+    font-size: clamp(1rem, 1.5vw, 1.25rem);
+    line-height: 1.7;
+    font-weight: 300;
+    letter-spacing: 0.01em;
+  }
+
+  .body-small {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    font-weight: 300;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .caption {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
   }
 }
 
@@ -105,9 +261,69 @@
   .ring-gold {
     --tw-ring-color: hsl(var(--gold));
   }
+
+  .text-gold {
+    color: hsl(var(--gold));
+  }
+
+  .text-gold-muted {
+    color: hsl(var(--gold-muted));
+  }
+
+  .text-cream-muted {
+    color: hsl(var(--cream-muted));
+  }
+
+  /* Section spacing */
+  .py-section {
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+  }
+
+  @media (min-width: 768px) {
+    .py-section {
+      padding-top: 8rem;
+      padding-bottom: 8rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .py-section {
+      padding-top: 10rem;
+      padding-bottom: 10rem;
+    }
+  }
+
+  .py-section-sm {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+
+  @media (min-width: 768px) {
+    .py-section-sm {
+      padding-top: 4rem;
+      padding-bottom: 4rem;
+    }
+  }
 }
 
 @layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 1.2s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 1s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  }
+
+  .animate-reveal {
+    animation: reveal 1.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  }
+
+  .animate-gentle-bounce {
+    animation: gentleBounce 2.5s ease-in-out infinite;
+  }
+
   .animate-subtle-float {
     animation: subtleFloat 6s ease-in-out infinite;
   }
@@ -118,6 +334,46 @@
 
   .animate-pulse-gold {
     animation: pulseGold 3s ease-in-out infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(60px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gentleBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(6px);
   }
 }
 
@@ -148,4 +404,33 @@
   50% {
     opacity: 0.6;
   }
+}
+
+/* Smooth scroll sections */
+section {
+  scroll-margin-top: 80px;
+}
+
+/* Editorial link style */
+.editorial-link {
+  position: relative;
+  display: inline-block;
+}
+
+.editorial-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background-color: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.editorial-link:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
 }
