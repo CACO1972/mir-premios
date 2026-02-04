@@ -49,8 +49,8 @@ const ExclusivoMiroSection = () => {
           </p>
         </motion.header>
 
-        {/* Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        {/* Cards Grid - Elegant Grid System */}
+        <div className="elegant-grid-sm">
           {exclusivoModules.map((module, index) => (
             <ServiceCard
               key={module.id}
