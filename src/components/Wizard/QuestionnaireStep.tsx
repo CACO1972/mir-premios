@@ -67,6 +67,7 @@ const QuestionnaireStep = ({ routeType, onComplete, onError }: QuestionnaireStep
 
   const uploadImages = async (evaluationId: string): Promise<string[]> => {
     const urls: string[] = [];
+    let uploadErrorOccurred = false;
     
     for (const { file } of uploadedImages) {
       const fileExt = file.name.split('.').pop();
@@ -78,6 +79,8 @@ const QuestionnaireStep = ({ routeType, onComplete, onError }: QuestionnaireStep
       
       if (uploadError) {
         console.error('Error uploading image:', uploadError);
+        uploadErrorOccurred = true;
+        // Continue with other images even if one fails
         continue;
       }
       
@@ -88,11 +91,45 @@ const QuestionnaireStep = ({ routeType, onComplete, onError }: QuestionnaireStep
       urls.push(publicUrl);
     }
     
+    // Notify if some images failed to upload
+    if (uploadErrorOccurred && urls.length > 0) {
+      console.warn('Some images failed to upload, but continuing with uploaded images');
+    }
+    
     return urls;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!formData.nombre.trim()) {
+      onError('Por favor, ingresa tu nombre completo');
+      return;
+    }
+    
+    if (!formData.email.trim()) {
+      onError('Por favor, ingresa tu correo electrónico');
+      return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      onError('Por favor, ingresa un correo electrónico válido');
+      return;
+    }
+    
+    if (!formData.telefono.trim()) {
+      onError('Por favor, ingresa tu teléfono');
+      return;
+    }
+    
+    if (!formData.motivo_consulta.trim() || formData.motivo_consulta.length < 10) {
+      onError('Por favor, describe el motivo de tu consulta (mínimo 10 caracteres)');
+      return;
+    }
+
     setIsLoading(true);
 
     try {

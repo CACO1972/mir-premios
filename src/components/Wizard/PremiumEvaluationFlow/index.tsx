@@ -79,6 +79,8 @@ const PremiumEvaluationFlow = ({
 
       if (error) {
         console.error('Dentalink patient creation error:', error);
+        // Don't fail the whole flow for Dentalink integration issues
+        // Patient can still schedule without Dentalink ID
         return;
       }
 
@@ -88,6 +90,7 @@ const PremiumEvaluationFlow = ({
       }
     } catch (err) {
       console.error('Error creating Dentalink patient:', err);
+      // Continue flow even if Dentalink fails - not critical
     }
   }, [evaluationId, evaluacionData.nombre, evaluacionData.email, evaluacionData.telefono, evaluacionData.rut, evaluacionData.fecha_nacimiento]);
 
