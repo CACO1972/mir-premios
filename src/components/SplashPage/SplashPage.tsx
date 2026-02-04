@@ -7,7 +7,7 @@ interface SplashPageProps {
 }
 
 const SplashPage = ({ onComplete }: SplashPageProps) => {
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
