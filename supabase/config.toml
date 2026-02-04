@@ -41,3 +41,30 @@ verify_jwt = false
 
 [functions.dentalink-integration]
 verify_jwt = false
+
+[functions.funnel-lead]
+verify_jwt = false
+
+[functions.funnel-upload-intake]
+verify_jwt = false
+
+[functions.funnel-ia-scan]
+verify_jwt = false
+
+[functions.funnel-premium-checkout]
+verify_jwt = false
+
+[functions.webhooks-payment]
+verify_jwt = false
+
+[functions.agenda-options]
+verify_jwt = false
+
+[functions.agenda-book]
+verify_jwt = false
+
+[functions.auth-login-rut]
+verify_jwt = false
+
+[functions.auth-verify-otp]
+verify_jwt = false
