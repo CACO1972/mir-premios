@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import type { RouteType, EvaluacionData } from '../types';
@@ -60,9 +60,38 @@ const PremiumEvaluationFlow = ({
         setStep('payment');
       }
     }
-  }, [evaluationId]);
+  }, [evaluationId, onError, checkPaymentStatus]);
 
-  const checkPaymentStatus = async () => {
+  const createDentalinkPatient = useCallback(async () => {
+    try {
+      console.log('Creating patient in Dentalink...');
+      const { data, error } = await supabase.functions.invoke('dentalink-integration', {
+        body: {
+          action: 'create-patient',
+          evaluation_id: evaluationId,
+          nombre: evaluacionData.nombre,
+          email: evaluacionData.email,
+          telefono: evaluacionData.telefono,
+          rut: evaluacionData.rut,
+          fecha_nacimiento: evaluacionData.fecha_nacimiento,
+        },
+      });
+
+      if (error) {
+        console.error('Dentalink patient creation error:', error);
+        return;
+      }
+
+      if (data?.patient_id) {
+        console.log('Patient created/found with ID:', data.patient_id);
+        setDentalinkPatientId(data.patient_id.toString());
+      }
+    } catch (err) {
+      console.error('Error creating Dentalink patient:', err);
+    }
+  }, [evaluationId, evaluacionData.nombre, evaluacionData.email, evaluacionData.telefono, evaluacionData.rut, evaluacionData.fecha_nacimiento]);
+
+  const checkPaymentStatus = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('evaluaciones')
@@ -106,36 +135,7 @@ const PremiumEvaluationFlow = ({
     } finally {
       setCheckingPayment(false);
     }
-  };
-
-  const createDentalinkPatient = async () => {
-    try {
-      console.log('Creating patient in Dentalink...');
-      const { data, error } = await supabase.functions.invoke('dentalink-integration', {
-        body: {
-          action: 'create-patient',
-          evaluation_id: evaluationId,
-          nombre: evaluacionData.nombre,
-          email: evaluacionData.email,
-          telefono: evaluacionData.telefono,
-          rut: evaluacionData.rut,
-          fecha_nacimiento: evaluacionData.fecha_nacimiento,
-        },
-      });
-
-      if (error) {
-        console.error('Dentalink patient creation error:', error);
-        return;
-      }
-
-      if (data?.patient_id) {
-        console.log('Patient created/found with ID:', data.patient_id);
-        setDentalinkPatientId(data.patient_id.toString());
-      }
-    } catch (err) {
-      console.error('Error creating Dentalink patient:', err);
-    }
-  };
+  }, [evaluationId, createDentalinkPatient]);
 
   const handleConfirm = async () => {
     setIsProcessing(true);

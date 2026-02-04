@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Calendar, FileText, CreditCard, MessageCircle, LogOut, Home } from 'lucide-react';
@@ -25,11 +25,7 @@ const PortalPaciente = () => {
   const [leadData, setLeadData] = useState<LeadData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    checkAuthAndLoadData();
-  }, []);
-
-  const checkAuthAndLoadData = async () => {
+  const checkAuthAndLoadData = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -57,7 +53,11 @@ const PortalPaciente = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    checkAuthAndLoadData();
+  }, [checkAuthAndLoadData]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
