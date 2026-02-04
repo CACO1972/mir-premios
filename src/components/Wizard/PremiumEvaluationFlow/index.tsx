@@ -40,28 +40,7 @@ const PremiumEvaluationFlow = ({
     maximumFractionDigits: 0,
   }).format(price);
 
-  // Check for payment return from MP
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get('payment');
-    const returnedEvalId = urlParams.get('evaluation_id');
-
-    if (paymentStatus && returnedEvalId === evaluationId) {
-      // Clean URL
-      window.history.replaceState({}, '', window.location.pathname);
-
-      if (paymentStatus === 'success') {
-        setCheckingPayment(true);
-        checkPaymentStatus();
-      } else if (paymentStatus === 'failure') {
-        onError('El pago fue rechazado. Por favor, intenta con otro método de pago.');
-        setStep('payment');
-      } else if (paymentStatus === 'pending') {
-        setStep('payment');
-      }
-    }
-  }, [evaluationId, onError, checkPaymentStatus]);
-
+  // Define functions before they're used in effects
   const createDentalinkPatient = useCallback(async () => {
     try {
       console.log('Creating patient in Dentalink...');
@@ -139,6 +118,28 @@ const PremiumEvaluationFlow = ({
       setCheckingPayment(false);
     }
   }, [evaluationId, createDentalinkPatient]);
+
+  // Check for payment return from MP
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    const returnedEvalId = urlParams.get('evaluation_id');
+
+    if (paymentStatus && returnedEvalId === evaluationId) {
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname);
+
+      if (paymentStatus === 'success') {
+        setCheckingPayment(true);
+        checkPaymentStatus();
+      } else if (paymentStatus === 'failure') {
+        onError('El pago fue rechazado. Por favor, intenta con otro método de pago.');
+        setStep('payment');
+      } else if (paymentStatus === 'pending') {
+        setStep('payment');
+      }
+    }
+  }, [evaluationId, onError, checkPaymentStatus]);
 
   const handleConfirm = async () => {
     setIsProcessing(true);
