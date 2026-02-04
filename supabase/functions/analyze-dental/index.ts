@@ -93,6 +93,44 @@ Las coordenadas x,y son porcentajes (0-100) de la posición en la imagen.
 - y=30 es la zona de dientes superiores
 - y=70 es la zona de dientes inferiores`;
 
+    // Helper function to convert image URL to base64
+    async function imageUrlToBase64(url: string): Promise<string | null> {
+      try {
+        // Extract the storage path from the URL
+        const storagePathMatch = url.match(/dental-images\/(.+)$/);
+        if (!storagePathMatch) {
+          console.log("Could not extract storage path from URL:", url);
+          return null;
+        }
+        
+        const storagePath = storagePathMatch[1];
+        console.log("Downloading image from storage path:", storagePath);
+        
+        // Download using Supabase storage (works for private buckets)
+        const { data, error } = await supabase.storage
+          .from('dental-images')
+          .download(storagePath);
+        
+        if (error || !data) {
+          console.error("Failed to download image:", error);
+          return null;
+        }
+        
+        // Convert blob to base64
+        const arrayBuffer = await data.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        
+        // Determine mime type from extension
+        const ext = storagePath.split('.').pop()?.toLowerCase() || 'png';
+        const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+        
+        return `data:${mimeType};base64,${base64}`;
+      } catch (err) {
+        console.error("Error converting image to base64:", err);
+        return null;
+      }
+    }
+
     // Build messages with images
     const userContent: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
       {
@@ -110,13 +148,19 @@ ${image_urls?.length > 0 ? 'IMÁGENES ADJUNTAS: Analiza las radiografías/fotos 
       }
     ];
 
-    // Add images if provided
+    // Add images as base64 if provided
     if (image_urls && image_urls.length > 0) {
       for (const url of image_urls) {
-        userContent.push({
-          type: "image_url",
-          image_url: { url }
-        });
+        const base64Image = await imageUrlToBase64(url);
+        if (base64Image) {
+          userContent.push({
+            type: "image_url",
+            image_url: { url: base64Image }
+          });
+          console.log("Successfully converted image to base64");
+        } else {
+          console.warn("Skipping image that could not be converted:", url);
+        }
       }
     }
 
