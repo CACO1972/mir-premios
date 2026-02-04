@@ -31,6 +31,16 @@ const SplashPage = ({ onComplete }: SplashPageProps) => {
     onComplete();
   };
 
+  // End video 2 seconds early
+  const handleTimeUpdate = () => {
+    if (videoRef.current) {
+      const timeLeft = videoRef.current.duration - videoRef.current.currentTime;
+      if (timeLeft <= 2) {
+        onComplete();
+      }
+    }
+  };
+
   const toggleMute = () => {
     if (videoRef.current) {
       videoRef.current.muted = !isMuted;
@@ -81,6 +91,7 @@ const SplashPage = ({ onComplete }: SplashPageProps) => {
           playsInline
           muted={isMuted}
           onEnded={handleVideoEnd}
+          onTimeUpdate={handleTimeUpdate}
         />
 
         {/* Overlay gradient for better text readability */}
