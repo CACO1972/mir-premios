@@ -86,6 +86,113 @@ export type Database = {
         }
         Relationships: []
       }
+      funnel_leads: {
+        Row: {
+          checkout_created_at: string | null
+          checkout_url: string | null
+          cita_agendada_at: string | null
+          created_at: string
+          dentalink_appointment_id: string | null
+          dentalink_patient_id: string | null
+          email: string
+          evaluacion_id: string | null
+          ia_hallazgos: Json | null
+          ia_resumen: string | null
+          ia_ruta_sugerida: string | null
+          ia_scan_completed_at: string | null
+          id: string
+          last_notification_sent_at: string | null
+          monto_pagado: number | null
+          motivo_consulta: string | null
+          nombre: string
+          notifications_sent: Json | null
+          origen: string | null
+          paid_at: string | null
+          payment_id: string | null
+          payment_status: string | null
+          rut: string | null
+          stage: Database["public"]["Enums"]["funnel_stage"]
+          stage_changed_at: string
+          telefono: string | null
+          updated_at: string
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          checkout_created_at?: string | null
+          checkout_url?: string | null
+          cita_agendada_at?: string | null
+          created_at?: string
+          dentalink_appointment_id?: string | null
+          dentalink_patient_id?: string | null
+          email: string
+          evaluacion_id?: string | null
+          ia_hallazgos?: Json | null
+          ia_resumen?: string | null
+          ia_ruta_sugerida?: string | null
+          ia_scan_completed_at?: string | null
+          id?: string
+          last_notification_sent_at?: string | null
+          monto_pagado?: number | null
+          motivo_consulta?: string | null
+          nombre: string
+          notifications_sent?: Json | null
+          origen?: string | null
+          paid_at?: string | null
+          payment_id?: string | null
+          payment_status?: string | null
+          rut?: string | null
+          stage?: Database["public"]["Enums"]["funnel_stage"]
+          stage_changed_at?: string
+          telefono?: string | null
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          checkout_created_at?: string | null
+          checkout_url?: string | null
+          cita_agendada_at?: string | null
+          created_at?: string
+          dentalink_appointment_id?: string | null
+          dentalink_patient_id?: string | null
+          email?: string
+          evaluacion_id?: string | null
+          ia_hallazgos?: Json | null
+          ia_resumen?: string | null
+          ia_ruta_sugerida?: string | null
+          ia_scan_completed_at?: string | null
+          id?: string
+          last_notification_sent_at?: string | null
+          monto_pagado?: number | null
+          motivo_consulta?: string | null
+          nombre?: string
+          notifications_sent?: Json | null
+          origen?: string | null
+          paid_at?: string | null
+          payment_id?: string | null
+          payment_status?: string | null
+          rut?: string | null
+          stage?: Database["public"]["Enums"]["funnel_stage"]
+          stage_changed_at?: string
+          telefono?: string | null
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "funnel_leads_evaluacion_id_fkey"
+            columns: ["evaluacion_id"]
+            isOneToOne: false
+            referencedRelation: "evaluaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -94,7 +201,14 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      funnel_stage:
+        | "LEAD"
+        | "IA_DONE"
+        | "CHECKOUT_CREATED"
+        | "PAID"
+        | "SCHEDULED"
+        | "COMPLETED"
+        | "CANCELLED"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -221,6 +335,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      funnel_stage: [
+        "LEAD",
+        "IA_DONE",
+        "CHECKOUT_CREATED",
+        "PAID",
+        "SCHEDULED",
+        "COMPLETED",
+        "CANCELLED",
+      ],
+    },
   },
 } as const
