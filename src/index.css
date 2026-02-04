@@ -340,6 +340,122 @@
     box-shadow: var(--shadow-lift);
   }
 
+  /* ===== GRID ELEGANTE SYSTEM ===== */
+  
+  /* Grid flexible y aireado - Layout maestro */
+  .elegant-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: clamp(1.5rem, 5vw, 4rem);
+    align-items: start;
+  }
+
+  /* Variante compacta para móviles */
+  .elegant-grid-sm {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: clamp(1rem, 3vw, 2rem);
+    align-items: start;
+  }
+
+  /* Item destacado que ocupa 2 columnas */
+  .item-destacado {
+    grid-column: span 2;
+    aspect-ratio: 16 / 9;
+  }
+
+  @media (max-width: 640px) {
+    .item-destacado {
+      grid-column: span 1;
+    }
+  }
+
+  /* Layout Editorial (Revista) - Columnas asimétricas */
+  .grid-editorial {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: clamp(1.5rem, 4vw, 3rem);
+    align-items: start;
+  }
+
+  @media (max-width: 768px) {
+    .grid-editorial {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Layout Bento (Modular) - Para dashboards */
+  .grid-bento {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: auto;
+    gap: clamp(1rem, 2vw, 1.5rem);
+  }
+
+  .bento-wide {
+    grid-column: span 2;
+  }
+
+  .bento-tall {
+    grid-row: span 2;
+  }
+
+  .bento-featured {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+
+  @media (max-width: 768px) {
+    .grid-bento {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .bento-featured {
+      grid-column: span 2;
+      grid-row: span 1;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .grid-bento {
+      grid-template-columns: 1fr;
+    }
+    .bento-wide,
+    .bento-featured {
+      grid-column: span 1;
+    }
+  }
+
+  /* Galería Masonry (Visual) - Relleno automático */
+  .grid-masonry {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-auto-flow: dense;
+    gap: clamp(0.75rem, 2vw, 1.5rem);
+  }
+
+  .masonry-wide {
+    grid-column: span 2;
+  }
+
+  @media (max-width: 640px) {
+    .masonry-wide {
+      grid-column: span 1;
+    }
+  }
+
+  /* Gap fluido utilitario */
+  .gap-fluid {
+    gap: clamp(1rem, 3vw, 3rem);
+  }
+
+  .gap-fluid-sm {
+    gap: clamp(0.5rem, 2vw, 1.5rem);
+  }
+
+  .gap-fluid-lg {
+    gap: clamp(2rem, 5vw, 5rem);
+  }
+
   .animate-fade-in {
     animation: fadeIn 1.2s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
   }
