@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -26,6 +26,7 @@ const PortalProfesional = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [leads, setLeads] = useState<LeadSummary[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -33,11 +34,7 @@ const PortalProfesional = () => {
     completed: 0,
   });
 
-  useEffect(() => {
-    checkAuthAndLoadData();
-  }, []);
-
-  const checkAuthAndLoadData = async () => {
+  const checkAuthAndLoadData = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -55,6 +52,7 @@ const PortalProfesional = () => {
 
       if (error) {
         console.error('Error loading leads:', error);
+        setError('Error al cargar los leads. Por favor, intenta de nuevo.');
       } else {
         setLeads(leadsData as LeadSummary[]);
         
@@ -68,10 +66,15 @@ const PortalProfesional = () => {
       }
     } catch (err) {
       console.error('Auth check error:', err);
+      setError('Error inesperado al cargar datos.');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    checkAuthAndLoadData();
+  }, [checkAuthAndLoadData]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -114,6 +117,31 @@ const PortalProfesional = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Cargando...</div>
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4"
+      >
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-6 w-6" />
+              Error al cargar datos
+            </CardTitle>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => { setError(null); checkAuthAndLoadData(); }} className="w-full">
+              Intentar de nuevo
+            </Button>
+          </CardContent>
+        </Card>
+      </motion.div>
     );
   }
 

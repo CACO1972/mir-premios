@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import type { RouteType, EvaluacionData } from '../types';
@@ -40,29 +40,40 @@ const PremiumEvaluationFlow = ({
     maximumFractionDigits: 0,
   }).format(price);
 
-  // Check for payment return from MP
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get('payment');
-    const returnedEvalId = urlParams.get('evaluation_id');
+  // Define functions before they're used in effects
+  const createDentalinkPatient = useCallback(async () => {
+    try {
+      console.log('Creating patient in Dentalink...');
+      const { data, error } = await supabase.functions.invoke('dentalink-integration', {
+        body: {
+          action: 'create-patient',
+          evaluation_id: evaluationId,
+          nombre: evaluacionData.nombre,
+          email: evaluacionData.email,
+          telefono: evaluacionData.telefono,
+          rut: evaluacionData.rut,
+          fecha_nacimiento: evaluacionData.fecha_nacimiento,
+        },
+      });
 
-    if (paymentStatus && returnedEvalId === evaluationId) {
-      // Clean URL
-      window.history.replaceState({}, '', window.location.pathname);
-
-      if (paymentStatus === 'success') {
-        setCheckingPayment(true);
-        checkPaymentStatus();
-      } else if (paymentStatus === 'failure') {
-        onError('El pago fue rechazado. Por favor, intenta con otro método de pago.');
-        setStep('payment');
-      } else if (paymentStatus === 'pending') {
-        setStep('payment');
+      if (error) {
+        console.error('Dentalink patient creation error:', error);
+        // Don't fail the whole flow for Dentalink integration issues
+        // Patient can still schedule without Dentalink ID
+        return;
       }
-    }
-  }, [evaluationId]);
 
-  const checkPaymentStatus = async () => {
+      if (data?.patient_id) {
+        console.log('Patient created/found with ID:', data.patient_id);
+        setDentalinkPatientId(data.patient_id.toString());
+      }
+    } catch (err) {
+      console.error('Error creating Dentalink patient:', err);
+      // Continue flow even if Dentalink fails - not critical
+    }
+  }, [evaluationId, evaluacionData.nombre, evaluacionData.email, evaluacionData.telefono, evaluacionData.rut, evaluacionData.fecha_nacimiento]);
+
+  const checkPaymentStatus = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('evaluaciones')
@@ -106,36 +117,29 @@ const PremiumEvaluationFlow = ({
     } finally {
       setCheckingPayment(false);
     }
-  };
+  }, [evaluationId, createDentalinkPatient]);
 
-  const createDentalinkPatient = async () => {
-    try {
-      console.log('Creating patient in Dentalink...');
-      const { data, error } = await supabase.functions.invoke('dentalink-integration', {
-        body: {
-          action: 'create-patient',
-          evaluation_id: evaluationId,
-          nombre: evaluacionData.nombre,
-          email: evaluacionData.email,
-          telefono: evaluacionData.telefono,
-          rut: evaluacionData.rut,
-          fecha_nacimiento: evaluacionData.fecha_nacimiento,
-        },
-      });
+  // Check for payment return from MP
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    const returnedEvalId = urlParams.get('evaluation_id');
 
-      if (error) {
-        console.error('Dentalink patient creation error:', error);
-        return;
+    if (paymentStatus && returnedEvalId === evaluationId) {
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname);
+
+      if (paymentStatus === 'success') {
+        setCheckingPayment(true);
+        checkPaymentStatus();
+      } else if (paymentStatus === 'failure') {
+        onError('El pago fue rechazado. Por favor, intenta con otro método de pago.');
+        setStep('payment');
+      } else if (paymentStatus === 'pending') {
+        setStep('payment');
       }
-
-      if (data?.patient_id) {
-        console.log('Patient created/found with ID:', data.patient_id);
-        setDentalinkPatientId(data.patient_id.toString());
-      }
-    } catch (err) {
-      console.error('Error creating Dentalink patient:', err);
     }
-  };
+  }, [evaluationId, onError, checkPaymentStatus]);
 
   const handleConfirm = async () => {
     setIsProcessing(true);

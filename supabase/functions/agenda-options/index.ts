@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
     const bookingLink = BOOKING_LINKS[rutaSugerida] || BOOKING_LINKS.general;
 
     // If Dentalink is configured, try to get available slots
-    let availableSlots: Array<{ date: string; time: string; specialist?: string }> = [];
+    const availableSlots: Array<{ date: string; time: string; specialist?: string }> = [];
     
     if (dentalinkToken) {
       try {
