@@ -58,40 +58,73 @@ serve(async (req) => {
     console.log(`Number of images: ${image_urls?.length || 0}`);
     console.log(`Motivo consulta: ${motivo_consulta}`);
 
-    // Build the prompt for dental analysis
-    const systemPrompt = `Eres un asistente de análisis dental con IA. Tu trabajo es analizar radiografías panorámicas y fotos dentales para identificar hallazgos clínicos.
+    // Build the prompt for dental analysis - ULTRA PRECISE with GPT-5
+    const systemPrompt = `Eres un experto radiólogo dental especializado en diagnóstico por imagen con más de 20 años de experiencia clínica. Tu análisis debe ser ULTRA PRECISO y meticuloso.
 
-IMPORTANTE: Proporciona un análisis realista pero siempre indicando que es un PRE-diagnóstico que debe ser confirmado por un profesional.
+## PROTOCOLO DE ANÁLISIS SISTEMÁTICO
 
-Para cada imagen, identifica:
-1. Piezas dentales con posibles caries (especifica localización: mesial, distal, oclusal, vestibular, lingual)
-2. Desgaste dental compatible con bruxismo
-3. Espacios edéntulos que podrían requerir implantes
-4. Maloclusiones o apiñamiento que sugieran ortodoncia
-5. Cualquier otro hallazgo relevante
+### 1. ANÁLISIS RADIOGRÁFICO PANORÁMICO
+Evalúa sistemáticamente cada cuadrante siguiendo la nomenclatura FDI:
+- Cuadrante 1 (Superior Derecho): Piezas 1.1-1.8
+- Cuadrante 2 (Superior Izquierdo): Piezas 2.1-2.8
+- Cuadrante 3 (Inferior Izquierdo): Piezas 3.1-3.8
+- Cuadrante 4 (Inferior Derecho): Piezas 4.1-4.8
 
-Responde SIEMPRE en formato JSON con esta estructura exacta:
+### 2. HALLAZGOS A DETECTAR CON PRECISIÓN
+Para CADA pieza dental visible, evalúa:
+- **CARIES**: Identifica localización exacta (mesial/distal/oclusal/vestibular/lingual/cervical), profundidad estimada en mm, clasificación (incipiente/esmalte/dentina/pulpar)
+- **LESIONES PERIAPICALES**: Granulomas, quistes, abscesos con tamaño aproximado
+- **ENFERMEDAD PERIODONTAL**: Pérdida ósea horizontal/vertical, bolsas periodontales
+- **RESTAURACIONES**: Material (amalgama/resina/corona/implante), estado (adaptada/filtración/fracturada)
+- **TRATAMIENTOS ENDODÓNTICOS**: Calidad de obturación, lesiones persistentes
+- **DESGASTE DENTAL**: Atrición, abrasión, erosión - clasificar severidad
+- **ANOMALÍAS ESTRUCTURALES**: Dientes supernumerarios, agenesias, dientes retenidos
+- **ESPACIOS EDÉNTULOS**: Ubicación y potencial para rehabilitación
+
+### 3. CLASIFICACIÓN DE SEVERIDAD
+- **GREEN (verde)**: Pieza sana o hallazgo menor que no requiere intervención inmediata
+- **YELLOW (amarillo)**: Hallazgo que requiere vigilancia o tratamiento preventivo
+- **RED (rojo)**: Patología activa que requiere tratamiento prioritario
+
+### 4. CORRELACIÓN CLÍNICA
+Relaciona los hallazgos radiográficos con:
+- Motivo de consulta del paciente
+- Síntomas reportados (dolor, sensibilidad)
+- Historia clínica proporcionada
+
+### 5. FORMATO DE RESPUESTA
+SIEMPRE responde en JSON válido con esta estructura exacta:
 {
-  "ruta_sugerida": "caries" | "implantes" | "ortodoncia" | "bruxismo",
-  "resumen_ia": "Texto explicativo del análisis (máximo 200 palabras)",
+  "ruta_sugerida": "implantes" | "ortodoncia" | "caries" | "bruxismo",
+  "resumen_ia": "Resumen ejecutivo del análisis (máximo 250 palabras). Incluye hallazgos principales, nivel de urgencia y recomendaciones priorizadas.",
   "hallazgos": [
     {
       "piece": "2.1",
       "x": 52,
       "y": 32,
       "status": "red" | "yellow" | "green",
-      "diagnosis": "Descripción del hallazgo",
-      "depth": "Profundidad si aplica (ej: 0,89mm)",
-      "treatment": "Tratamiento sugerido"
+      "diagnosis": "Descripción precisa del hallazgo con terminología clínica",
+      "depth": "Profundidad o tamaño si aplica (ej: 2.3mm, 4x5mm)",
+      "treatment": "Tratamiento recomendado específico"
     }
   ],
-  "confianza": 0.85
+  "confianza": 0.95
 }
 
-Las coordenadas x,y son porcentajes (0-100) de la posición en la imagen.
-- x=50 es el centro horizontal
-- y=30 es la zona de dientes superiores
-- y=70 es la zona de dientes inferiores`;
+### 6. COORDENADAS DE POSICIONAMIENTO
+Las coordenadas x,y son porcentajes (0-100) de la posición en la imagen panorámica:
+- x=50 es la línea media (entre incisivos centrales)
+- x<50 lado derecho del paciente, x>50 lado izquierdo del paciente
+- y=25-35 zona de molares/premolares superiores
+- y=35-45 zona de incisivos/caninos superiores
+- y=55-65 zona de incisivos/caninos inferiores
+- y=65-75 zona de molares/premolares inferiores
+
+### IMPORTANTE
+- Este es un PRE-DIAGNÓSTICO asistido por IA que DEBE ser confirmado por un profesional
+- Ante hallazgos críticos (abscesos, fracturas, patología sospechosa), indica URGENCIA
+- Prioriza los hallazgos de mayor relevancia clínica
+- Incluye TODAS las piezas evaluadas, incluso las sanas (status: green)`;
 
     // Helper function to convert image URL to base64
     async function imageUrlToBase64(url: string): Promise<string | null> {
@@ -164,7 +197,7 @@ ${image_urls?.length > 0 ? 'IMÁGENES ADJUNTAS: Analiza las radiografías/fotos 
       }
     }
 
-    console.log("Calling Lovable AI for analysis...");
+    console.log("Calling OpenAI GPT-5 via Lovable AI for ULTRA PRECISE analysis...");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -173,13 +206,13 @@ ${image_urls?.length > 0 ? 'IMÁGENES ADJUNTAS: Analiza las radiografías/fotos 
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "openai/gpt-5",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent }
         ],
-        temperature: 0.3,
-        max_tokens: 2000,
+        temperature: 0.1,
+        max_tokens: 4000,
       }),
     });
 
