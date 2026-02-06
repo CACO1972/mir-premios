@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Calendar, FileText, CreditCard, MessageCircle, LogOut, Home } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PortalHeader, EvaluacionesTab, PagosTab, CitasTab } from '@/components/PortalPaciente';
 
 interface LeadData {
   id: string;
@@ -17,12 +19,31 @@ interface LeadData {
   ia_resumen: string | null;
   cita_agendada_at: string | null;
   payment_status: string | null;
+  monto_pagado: number | null;
+  paid_at: string | null;
+  checkout_url: string | null;
+  created_at: string;
+}
+
+interface EvaluacionData {
+  id: string;
+  nombre: string;
+  email: string;
+  tipo_ruta: string;
+  ruta_sugerida: string | null;
+  estado_evaluacion: string;
+  resumen_ia: string | null;
+  payment_status: string;
+  created_at: string;
+  cita_agendada_at: string | null;
 }
 
 const PortalPaciente = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
-  const [leadData, setLeadData] = useState<LeadData | null>(null);
+  const [leads, setLeads] = useState<LeadData[]>([]);
+  const [evaluaciones, setEvaluaciones] = useState<EvaluacionData[]>([]);
+  const [userName, setUserName] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,19 +59,44 @@ const PortalPaciente = () => {
         return;
       }
 
-      // Get lead data by email
-      const { data: lead, error: leadError } = await supabase
-        .from('funnel_leads')
-        .select('*')
-        .eq('email', session.user.email)
-        .single();
+      const userEmail = session.user.email;
 
-      if (leadError) {
-        console.error('Error loading lead data:', leadError);
-        setError('No se encontraron datos del paciente');
+      // Fetch funnel_leads and evaluaciones in parallel
+      const [leadsResult, evaluacionesResult] = await Promise.all([
+        supabase
+          .from('funnel_leads')
+          .select('*')
+          .eq('email', userEmail)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('evaluaciones')
+          .select('*')
+          .eq('email', userEmail)
+          .order('created_at', { ascending: false })
+      ]);
+
+      if (leadsResult.error) {
+        console.error('Error loading leads:', leadsResult.error);
       } else {
-        setLeadData(lead as LeadData);
+        setLeads(leadsResult.data as LeadData[]);
+        if (leadsResult.data?.[0]?.nombre) {
+          setUserName(leadsResult.data[0].nombre.split(' ')[0]);
+        }
       }
+
+      if (evaluacionesResult.error) {
+        console.error('Error loading evaluaciones:', evaluacionesResult.error);
+      } else {
+        setEvaluaciones(evaluacionesResult.data as EvaluacionData[]);
+        if (!userName && evaluacionesResult.data?.[0]?.nombre) {
+          setUserName(evaluacionesResult.data[0].nombre.split(' ')[0]);
+        }
+      }
+
+      if (!leadsResult.data?.length && !evaluacionesResult.data?.length) {
+        setError('No se encontraron datos asociados a tu cuenta');
+      }
+
     } catch (err) {
       console.error('Auth check error:', err);
       setError('Error al cargar datos');
@@ -59,23 +105,25 @@ const PortalPaciente = () => {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/');
-  };
+  // Transform leads to pago format
+  const pagos = leads.map(lead => ({
+    id: lead.id,
+    payment_status: lead.payment_status,
+    monto_pagado: lead.monto_pagado,
+    paid_at: lead.paid_at,
+    checkout_url: lead.checkout_url,
+    ia_ruta_sugerida: lead.ia_ruta_sugerida,
+    created_at: lead.created_at,
+  }));
 
-  const getStageLabel = (stage: string) => {
-    const labels: Record<string, string> = {
-      'LEAD': 'Registrado',
-      'IA_DONE': 'Análisis IA completado',
-      'CHECKOUT_CREATED': 'Pendiente de pago',
-      'PAID': 'Pagado - Pendiente agendar',
-      'SCHEDULED': 'Cita agendada',
-      'COMPLETED': 'Completado',
-      'CANCELLED': 'Cancelado',
-    };
-    return labels[stage] || stage;
-  };
+  // Transform leads to cita format
+  const citas = leads.map(lead => ({
+    id: lead.id,
+    cita_agendada_at: lead.cita_agendada_at,
+    ia_ruta_sugerida: lead.ia_ruta_sugerida,
+    stage: lead.stage,
+    nombre: lead.nombre,
+  }));
 
   if (isLoading) {
     return (
@@ -87,29 +135,7 @@ const PortalPaciente = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/')} className="flex items-center gap-2">
-              <span className="font-serif text-xl text-foreground tracking-tight">
-                M<span className="text-gold-muted">iró</span>
-              </span>
-            </button>
-            <span className="text-sm text-muted-foreground">Portal Paciente</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
-              <Home className="h-4 w-4 mr-2" />
-              Inicio
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Salir
-            </Button>
-          </div>
-        </div>
-      </header>
+      <PortalHeader />
 
       <main className="container mx-auto px-4 py-8">
         {error ? (
@@ -121,7 +147,7 @@ const PortalPaciente = () => {
               </Button>
             </CardContent>
           </Card>
-        ) : leadData ? (
+        ) : (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -131,101 +157,48 @@ const PortalPaciente = () => {
             {/* Welcome Section */}
             <div className="text-center mb-8">
               <h1 className="text-3xl font-serif text-foreground mb-2">
-                Bienvenido, {leadData.nombre.split(' ')[0]}
+                Bienvenido{userName ? `, ${userName}` : ''}
               </h1>
               <p className="text-muted-foreground">
-                Estado actual: <span className="text-gold">{getStageLabel(leadData.stage)}</span>
+                Gestiona tus evaluaciones, pagos y citas desde un solo lugar
               </p>
             </div>
 
-            {/* Quick Actions Grid */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="hover:border-gold/50 transition-colors cursor-pointer">
-                <CardHeader className="pb-2">
-                  <User className="h-8 w-8 text-gold mb-2" />
-                  <CardTitle className="text-lg">Mi Perfil</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription>
-                    Ver y actualizar mis datos personales
-                  </CardDescription>
-                </CardContent>
-              </Card>
-
-              <Card className="hover:border-gold/50 transition-colors cursor-pointer">
-                <CardHeader className="pb-2">
-                  <Calendar className="h-8 w-8 text-gold mb-2" />
-                  <CardTitle className="text-lg">Mis Citas</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription>
-                    {leadData.cita_agendada_at 
-                      ? `Próxima cita: ${new Date(leadData.cita_agendada_at).toLocaleDateString('es-CL')}`
-                      : 'No hay citas programadas'
-                    }
-                  </CardDescription>
-                </CardContent>
-              </Card>
-
-              <Card className="hover:border-gold/50 transition-colors cursor-pointer">
-                <CardHeader className="pb-2">
-                  <FileText className="h-8 w-8 text-gold mb-2" />
-                  <CardTitle className="text-lg">Resultados IA</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription>
-                    {leadData.ia_resumen 
-                      ? 'Ver análisis de tu evaluación'
-                      : 'Pendiente de análisis'
-                    }
-                  </CardDescription>
-                </CardContent>
-              </Card>
-
-              <Card className="hover:border-gold/50 transition-colors cursor-pointer">
-                <CardHeader className="pb-2">
-                  <CreditCard className="h-8 w-8 text-gold mb-2" />
-                  <CardTitle className="text-lg">Pagos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription>
-                    {leadData.payment_status === 'approved' 
-                      ? 'Pago confirmado'
-                      : 'Ver estado de pagos'
-                    }
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* IA Summary Card */}
-            {leadData.ia_resumen && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-gold" />
-                    Resumen de tu Análisis IA
-                  </CardTitle>
-                  <CardDescription>
-                    Ruta sugerida: {leadData.ia_ruta_sugerida || 'General'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {leadData.ia_resumen}
-                  </p>
-                  <div className="mt-4 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-                    ⚠️ Este análisis es orientativo y no constituye un diagnóstico definitivo.
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {/* Tabs */}
+            <Tabs defaultValue="evaluaciones" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 mb-6">
+                <TabsTrigger value="evaluaciones">Mis Evaluaciones</TabsTrigger>
+                <TabsTrigger value="pagos">Pagos</TabsTrigger>
+                <TabsTrigger value="citas">Citas</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="evaluaciones">
+                <EvaluacionesTab 
+                  evaluaciones={evaluaciones} 
+                  isLoading={isLoading} 
+                />
+              </TabsContent>
+              
+              <TabsContent value="pagos">
+                <PagosTab 
+                  pagos={pagos} 
+                  isLoading={isLoading} 
+                />
+              </TabsContent>
+              
+              <TabsContent value="citas">
+                <CitasTab 
+                  citas={citas} 
+                  isLoading={isLoading} 
+                />
+              </TabsContent>
+            </Tabs>
 
             {/* WhatsApp Contact */}
             <Card className="bg-gradient-to-r from-green-500/10 to-green-600/10 border-green-500/20">
-              <CardContent className="flex items-center justify-between py-6">
+              <CardContent className="flex flex-col sm:flex-row items-center justify-between py-6 gap-4">
                 <div className="flex items-center gap-4">
-                  <MessageCircle className="h-10 w-10 text-green-500" />
+                  <MessageCircle className="h-10 w-10 text-green-500 flex-shrink-0" />
                   <div>
                     <h3 className="font-medium text-foreground">¿Necesitas ayuda?</h3>
                     <p className="text-sm text-muted-foreground">
@@ -234,7 +207,7 @@ const PortalPaciente = () => {
                   </div>
                 </div>
                 <Button 
-                  className="bg-green-500 hover:bg-green-600"
+                  className="bg-green-500 hover:bg-green-600 w-full sm:w-auto"
                   onClick={() => window.open('https://wa.me/56912345678', '_blank')}
                 >
                   Abrir WhatsApp
@@ -242,12 +215,6 @@ const PortalPaciente = () => {
               </CardContent>
             </Card>
           </motion.div>
-        ) : (
-          <Card className="max-w-md mx-auto">
-            <CardContent className="pt-6 text-center">
-              <p className="text-muted-foreground">No se encontraron datos</p>
-            </CardContent>
-          </Card>
         )}
       </main>
     </div>
