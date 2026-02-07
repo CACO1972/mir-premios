@@ -66,13 +66,11 @@ const Auth = () => {
         body: { rut: formData.rut, email: formData.email || undefined },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-
-      const data = response.data;
-
-      if (data.is_new_patient) {
+      // Handle the response - supabase.functions.invoke may put 4xx responses in error
+      const data = response.data || (response.error as any)?.context?.json;
+      
+      // Check if this is a "not found" case (is_new_patient)
+      if (data?.is_new_patient) {
         toast({
           title: 'Usuario no encontrado',
           description: 'No encontramos un registro con este RUT. ¿Deseas registrarte?',
@@ -81,7 +79,12 @@ const Auth = () => {
         return;
       }
 
-      if (data.success) {
+      // Check for other errors
+      if (response.error && !data?.is_new_patient) {
+        throw new Error(response.error.message || 'Error al verificar RUT');
+      }
+
+      if (data?.success) {
         setMaskedContact({
           email: data.email_masked,
           phone: data.phone_masked,
@@ -94,6 +97,18 @@ const Auth = () => {
       }
     } catch (error) {
       console.error('OTP request error:', error);
+      
+      // Try to parse error context for is_new_patient flag
+      const errorAny = error as any;
+      if (errorAny?.context?.is_new_patient || errorAny?.message?.includes('not found')) {
+        toast({
+          title: 'Usuario no encontrado',
+          description: 'No encontramos un registro con este RUT. ¿Deseas registrarte?',
+        });
+        setStep('signup');
+        return;
+      }
+      
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Error al enviar código',
