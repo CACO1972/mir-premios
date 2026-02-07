@@ -33,19 +33,56 @@ const ExistingPatientFlow = ({
     setIsLoading(true);
 
     try {
-      // Simulate patient lookup (would integrate with Dentalink)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mock patient data
-      setPatientData({
-        nombre: 'Paciente Existente',
-        dentalinkId: `dnk_${loginData.rut.replace(/[^0-9]/g, '')}`
-      });
+      // Try to find existing patient in funnel_leads or evaluaciones
+      const { data: leadData } = await supabase
+        .from('funnel_leads')
+        .select('nombre, dentalink_patient_id')
+        .eq('email', loginData.email)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (leadData) {
+        // Found existing patient
+        const firstName = leadData.nombre.split(' ')[0];
+        setPatientData({
+          nombre: firstName,
+          dentalinkId: leadData.dentalink_patient_id || `dnk_${loginData.rut.replace(/[^0-9]/g, '')}`
+        });
+      } else {
+        // Check evaluaciones table
+        const { data: evalData } = await supabase
+          .from('evaluaciones')
+          .select('nombre, dentalink_patient_id')
+          .eq('email', loginData.email)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (evalData) {
+          const firstName = evalData.nombre.split(' ')[0];
+          setPatientData({
+            nombre: firstName,
+            dentalinkId: evalData.dentalink_patient_id || `dnk_${loginData.rut.replace(/[^0-9]/g, '')}`
+          });
+        } else {
+          // No existing data found - use a generic greeting but let them proceed
+          setPatientData({
+            nombre: 'de vuelta',
+            dentalinkId: `dnk_${loginData.rut.replace(/[^0-9]/g, '')}`
+          });
+        }
+      }
       
       setStep('choice');
     } catch (err) {
       console.error('Error logging in:', err);
-      onError('No pudimos verificar tus datos. Verifica e intenta de nuevo.');
+      // Even on error, let them proceed with generic greeting
+      setPatientData({
+        nombre: 'de vuelta',
+        dentalinkId: `dnk_${loginData.rut.replace(/[^0-9]/g, '')}`
+      });
+      setStep('choice');
     } finally {
       setIsLoading(false);
     }

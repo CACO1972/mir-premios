@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, User } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface MenuOverlayProps {
@@ -53,6 +54,24 @@ const MenuOverlay = ({ isOpen, onClose }: MenuOverlayProps) => {
           {/* Menu content */}
           <div className="h-full flex flex-col justify-center items-center px-6">
             <nav className="space-y-8 text-center">
+              {/* Portal Paciente - Destacado */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05, duration: 0.5 }}
+              >
+                <Link
+                  to="/portal-paciente"
+                  onClick={onClose}
+                  className="inline-flex items-center gap-3 px-6 py-3 bg-gold/10 border border-gold/30 rounded-full hover:bg-gold/20 transition-colors duration-300"
+                >
+                  <User className="w-5 h-5 text-gold" />
+                  <span className="text-lg font-medium text-gold">
+                    {language === 'es' ? 'Mi Portal' : 'My Portal'}
+                  </span>
+                </Link>
+              </motion.div>
+
               {menuItems.map((item, index) => (
                 <motion.div
                   key={item.key}
