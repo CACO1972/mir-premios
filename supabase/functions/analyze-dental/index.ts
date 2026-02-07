@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface AnalysisRequest {
@@ -149,14 +149,33 @@ Las coordenadas x,y son porcentajes (0-100) de la posición en la imagen panorá
           return null;
         }
         
-        // Convert blob to base64
+        // Convert blob to base64 (chunked to avoid call stack / arg size limits)
         const arrayBuffer = await data.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-        
+        const bytes = new Uint8Array(arrayBuffer);
+
+        let binary = '';
+        const chunkSize = 0x8000; // 32KB
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          const chunk = bytes.subarray(i, i + chunkSize);
+          binary += String.fromCharCode(...chunk);
+        }
+        const base64 = btoa(binary);
+
         // Determine mime type from extension
-        const ext = storagePath.split('.').pop()?.toLowerCase() || 'png';
-        const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
-        
+        const ext = storagePath.split('.').pop()?.toLowerCase() || '';
+        const mimeType = ext === 'jpg' || ext === 'jpeg'
+          ? 'image/jpeg'
+          : ext === 'png'
+            ? 'image/png'
+            : ext === 'webp'
+              ? 'image/webp'
+              : null;
+
+        if (!mimeType) {
+          console.warn('Unsupported file type for AI image analysis:', ext);
+          return null;
+        }
+
         return `data:${mimeType};base64,${base64}`;
       } catch (err) {
         console.error("Error converting image to base64:", err);
@@ -197,63 +216,69 @@ ${image_urls?.length > 0 ? 'IMÁGENES ADJUNTAS: Analiza las radiografías/fotos 
       }
     }
 
-    console.log("Calling OpenAI GPT-5 via Lovable AI for ULTRA PRECISE analysis...");
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-5",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userContent }
-        ],
-        temperature: 0.1,
-        max_tokens: 4000,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`AI gateway error: ${response.status} - ${errorText}`);
-      
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
-
-    const aiResponse = await response.json();
-    const content = aiResponse.choices?.[0]?.message?.content;
-
-    console.log("AI Response received:", content?.substring(0, 200));
-
-    // Parse the JSON response
     let analysisResult: AnalysisResult;
-    try {
-      // Extract JSON from markdown code blocks if present
-      let jsonStr = content;
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) {
-        jsonStr = jsonMatch[1].trim();
-      }
-      analysisResult = JSON.parse(jsonStr);
-    } catch (parseError) {
-      console.error("Failed to parse AI response as JSON:", parseError);
-      // Fallback to basic analysis based on motivo
+
+    const hasAnyImage = userContent.some((c) => c.type === 'image_url');
+
+    if (!hasAnyImage) {
+      console.log('No analyzable images provided — using fallback analysis.');
       analysisResult = generateFallbackAnalysis(motivo_consulta || '', cuestionario_clinico);
+    } else {
+      console.log("Calling OpenAI GPT-5 via Lovable AI for ULTRA PRECISE analysis...");
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-5",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userContent },
+          ],
+          // GPT-5 on this gateway only supports default temperature; omit it.
+          max_completion_tokens: 2000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`AI gateway error: ${response.status} - ${errorText}`);
+
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again later." }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (response.status === 402) {
+          return new Response(JSON.stringify({ error: "Payment required, please add credits." }), {
+            status: 402,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        throw new Error(`AI gateway error: ${response.status}`);
+      }
+
+      const aiResponse = await response.json();
+      const content = aiResponse.choices?.[0]?.message?.content;
+
+      console.log("AI Response received:", content?.substring(0, 200));
+
+      try {
+        let jsonStr = content;
+        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          jsonStr = jsonMatch[1].trim();
+        }
+        analysisResult = JSON.parse(jsonStr);
+      } catch (parseError) {
+        console.error("Failed to parse AI response as JSON:", parseError);
+        analysisResult = generateFallbackAnalysis(motivo_consulta || '', cuestionario_clinico);
+      }
     }
 
     console.log(`Analysis complete. Route: ${analysisResult.ruta_sugerida}, Findings: ${analysisResult.hallazgos?.length || 0}`);
