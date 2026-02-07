@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { User } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -22,7 +23,18 @@ const EditorialHeader = ({ onMenuOpen }: EditorialHeaderProps) => {
           </Link>
 
           {/* Navigation controls */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 md:gap-6">
+            {/* Portal Paciente - Destacado */}
+            <Link
+              to="/portal-paciente"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gold/10 border border-gold/30 rounded-full hover:bg-gold/20 transition-colors duration-300"
+            >
+              <User className="w-4 h-4 text-gold" />
+              <span className="caption text-gold font-medium">
+                {language === 'es' ? 'Mi Portal' : 'My Portal'}
+              </span>
+            </Link>
+            
             <button
               onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
               className="caption text-muted-foreground hover:text-foreground transition-colors"
