@@ -65,28 +65,40 @@ const Auth = () => {
       // Normalize RUT before sending to API (without dots)
       const normalizedRut = normalizeRut(formData.rut);
       
-      const response = await supabase.functions.invoke('auth-login-rut', {
+      const { data, error } = await supabase.functions.invoke('auth-login-rut', {
         body: { rut: normalizedRut, email: formData.email || undefined },
       });
 
-      // Handle the response - supabase.functions.invoke may put 4xx responses in error
-      const data = response.data || (response.error as any)?.context?.json;
-      
-      // Check if this is a "not found" case (is_new_patient)
-      if (data?.is_new_patient) {
-        toast({
-          title: 'Usuario no encontrado',
-          description: 'No encontramos un registro con este RUT. ¿Deseas registrarte?',
-        });
-        setStep('signup');
-        return;
+      // Check for "not found" case - the edge function returns 404 with is_new_patient flag
+      // supabase.functions.invoke treats non-2xx as error, but data may still contain the response
+      if (error) {
+        // Check if error message indicates it's a 404 "not found" scenario
+        const errorMessage = error.message || '';
+        
+        // The response body might be in data even with an error
+        if (data?.is_new_patient) {
+          toast({
+            title: 'Usuario no encontrado',
+            description: 'No encontramos un registro con este RUT. ¿Deseas registrarte?',
+          });
+          setStep('signup');
+          return;
+        }
+        
+        // If it's a 404-like error (RUT not found), transition to signup
+        if (errorMessage.includes('non-2xx') || errorMessage.includes('404')) {
+          toast({
+            title: 'Usuario no encontrado',
+            description: 'No encontramos un registro con este RUT. ¿Deseas registrarte?',
+          });
+          setStep('signup');
+          return;
+        }
+        
+        throw new Error(errorMessage || 'Error al verificar RUT');
       }
 
-      // Check for other errors
-      if (response.error && !data?.is_new_patient) {
-        throw new Error(response.error.message || 'Error al verificar RUT');
-      }
-
+      // Success case
       if (data?.success) {
         setMaskedContact({
           email: data.email_masked,
@@ -97,20 +109,16 @@ const Auth = () => {
           title: 'Código enviado',
           description: 'Revisa tu correo/WhatsApp para el código de verificación',
         });
-      }
-    } catch (error) {
-      console.error('OTP request error:', error);
-      
-      // Try to parse error context for is_new_patient flag
-      const errorAny = error as any;
-      if (errorAny?.context?.is_new_patient || errorAny?.message?.includes('not found')) {
+      } else if (data?.is_new_patient) {
+        // Fallback check for is_new_patient in data
         toast({
           title: 'Usuario no encontrado',
           description: 'No encontramos un registro con este RUT. ¿Deseas registrarte?',
         });
         setStep('signup');
-        return;
       }
+    } catch (error) {
+      console.error('OTP request error:', error);
       
       toast({
         title: 'Error',
