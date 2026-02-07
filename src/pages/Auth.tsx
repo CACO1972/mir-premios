@@ -32,8 +32,8 @@ const Auth = () => {
     phone: null,
   });
 
-  // Format RUT as user types
-  const formatRut = (value: string) => {
+  // Format RUT for display (with dots)
+  const formatRutDisplay = (value: string) => {
     const clean = value.replace(/[^0-9kK]/g, '').toUpperCase();
     if (clean.length <= 1) return clean;
     
@@ -45,8 +45,18 @@ const Auth = () => {
     return `${formatted}-${verifier}`;
   };
 
+  // Normalize RUT for storage/API (without dots, with hyphen)
+  const normalizeRut = (value: string) => {
+    const clean = value.replace(/[^0-9kK]/g, '').toUpperCase();
+    if (clean.length <= 1) return clean;
+    
+    const body = clean.slice(0, -1);
+    const verifier = clean.slice(-1);
+    return `${body}-${verifier}`;
+  };
+
   const handleRutChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatRut(e.target.value);
+    const formatted = formatRutDisplay(e.target.value);
     setFormData(prev => ({ ...prev, rut: formatted }));
   };
 
@@ -62,8 +72,11 @@ const Auth = () => {
 
     setIsLoading(true);
     try {
+      // Normalize RUT before sending to API (without dots)
+      const normalizedRut = normalizeRut(formData.rut);
+      
       const response = await supabase.functions.invoke('auth-login-rut', {
-        body: { rut: formData.rut, email: formData.email || undefined },
+        body: { rut: normalizedRut, email: formData.email || undefined },
       });
 
       // Handle the response - supabase.functions.invoke may put 4xx responses in error
@@ -180,12 +193,15 @@ const Auth = () => {
 
     setIsLoading(true);
     try {
+      // Normalize RUT before sending to API
+      const normalizedRut = normalizeRut(formData.rut);
+      
       // Create lead first
       const leadResponse = await supabase.functions.invoke('funnel-lead', {
         body: {
           nombre: formData.nombre,
           email: formData.email,
-          rut: formData.rut,
+          rut: normalizedRut,
           telefono: formData.telefono,
           origen: 'portal',
         },
