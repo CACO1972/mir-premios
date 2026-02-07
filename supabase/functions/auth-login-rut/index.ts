@@ -33,12 +33,22 @@ function validateRut(rut: string): boolean {
   return verifier === calculatedVerifier;
 }
 
-// Format RUT consistently
+// Format RUT consistently - WITHOUT dots, WITH hyphen (Dentalink format)
 function formatRut(rut: string): string {
   const clean = rut.replace(/[.-]/g, "").toUpperCase();
   const body = clean.slice(0, -1);
   const verifier = clean.slice(-1);
   return `${body}-${verifier}`;
+}
+
+// Format RUT with dots for display
+function formatRutDisplay(rut: string): string {
+  const clean = rut.replace(/[.-]/g, "").toUpperCase();
+  const body = clean.slice(0, -1);
+  const verifier = clean.slice(-1);
+  // Add dots for thousands
+  const formatted = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${formatted}-${verifier}`;
 }
 
 // Generate 6-digit OTP
@@ -76,30 +86,113 @@ Deno.serve(async (req) => {
 
     const formattedRut = formatRut(body.rut);
 
-    // Find user/lead by RUT
-    const { data: lead } = await supabase
+    // Find user/lead by RUT (try both formats for backwards compatibility)
+    const rutWithDots = formatRutDisplay(body.rut);
+    
+    let lead = null;
+    
+    // Try without dots first (new format)
+    const { data: leadNoDots } = await supabase
       .from("funnel_leads")
       .select("id, email, nombre, telefono")
       .eq("rut", formattedRut)
       .single();
+    
+    if (leadNoDots) {
+      lead = leadNoDots;
+    } else {
+      // Try with dots (old format)
+      const { data: leadWithDots } = await supabase
+        .from("funnel_leads")
+        .select("id, email, nombre, telefono")
+        .eq("rut", rutWithDots)
+        .single();
+      lead = leadWithDots;
+    }
 
     if (!lead) {
-      // Check evaluaciones table
-      const { data: evaluacion } = await supabase
+      // Check evaluaciones table with both formats
+      let evaluacion = null;
+      
+      const { data: evalNoDots } = await supabase
         .from("evaluaciones")
         .select("id, email, nombre, telefono")
         .eq("rut", formattedRut)
         .single();
+      
+      if (evalNoDots) {
+        evaluacion = evalNoDots;
+      } else {
+        const { data: evalWithDots } = await supabase
+          .from("evaluaciones")
+          .select("id, email, nombre, telefono")
+          .eq("rut", rutWithDots)
+          .single();
+        evaluacion = evalWithDots;
+      }
 
       if (!evaluacion) {
-        return new Response(
-          JSON.stringify({ 
-            error: "RUT not found",
-            message: "No encontramos un registro con este RUT. ¿Es paciente nuevo?",
-            is_new_patient: true 
-          }),
-          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        // Try to find in Dentalink
+        const DENTALINK_API_TOKEN = Deno.env.get("DENTALINK_API_TOKEN");
+        if (DENTALINK_API_TOKEN) {
+          try {
+            console.log(`Searching Dentalink for RUT: ${formattedRut}`);
+            const dentalinkResponse = await fetch(
+              `https://api.dentalink.healthatom.com/api/v1/pacientes?rut=${encodeURIComponent(formattedRut)}`,
+              {
+                method: "GET",
+                headers: {
+                  "Authorization": `Token ${DENTALINK_API_TOKEN}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+            
+            if (dentalinkResponse.ok) {
+              const dentalinkData = await dentalinkResponse.json();
+              if (dentalinkData.data && dentalinkData.data.length > 0) {
+                const dentalinkPatient = dentalinkData.data[0];
+                console.log("Found patient in Dentalink:", dentalinkPatient.id);
+                
+                // Patient exists in Dentalink but not in our DB - create a lead
+                const { data: newLead, error: insertError } = await supabase
+                  .from("funnel_leads")
+                  .insert({
+                    nombre: `${dentalinkPatient.nombre} ${dentalinkPatient.apellidos || ""}`.trim(),
+                    email: dentalinkPatient.email || body.email,
+                    rut: formattedRut,
+                    telefono: dentalinkPatient.telefono,
+                    dentalink_patient_id: dentalinkPatient.id.toString(),
+                    origen: "dentalink_sync",
+                    stage: "LEAD",
+                  })
+                  .select("id, email, nombre, telefono")
+                  .single();
+                
+                if (!insertError && newLead) {
+                  lead = newLead;
+                  console.log("Created lead from Dentalink patient:", newLead.id);
+                }
+              }
+            }
+          } catch (dentalinkError) {
+            console.error("Dentalink search error (non-blocking):", dentalinkError);
+          }
+        }
+        
+        if (!lead) {
+          return new Response(
+            JSON.stringify({ 
+              error: "RUT not found",
+              message: "No encontramos un registro con este RUT. ¿Es paciente nuevo?",
+              is_new_patient: true 
+            }),
+            { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } else {
+        // Use evaluacion data as fallback
+        lead = evaluacion;
       }
     }
 

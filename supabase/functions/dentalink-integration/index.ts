@@ -55,7 +55,52 @@ serve(async (req) => {
 
     // Action: Create Patient
     if (action === 'create-patient' || url.pathname.endsWith('dentalink-integration')) {
-      const body = await req.json() as { action?: string } & CreatePatientRequest & ScheduleAppointmentRequest;
+      const body = await req.json() as { action?: string; rut?: string } & CreatePatientRequest & ScheduleAppointmentRequest;
+      
+      // Action: Search Patient by RUT
+      if (body.action === 'search-by-rut' && body.rut) {
+        console.log('Searching Dentalink for RUT:', body.rut);
+        
+        // Normalize RUT to format without dots, with hyphen
+        const cleanRut = body.rut.replace(/[.-]/g, '').toUpperCase();
+        const normalizedRut = cleanRut.length > 1 
+          ? `${cleanRut.slice(0, -1)}-${cleanRut.slice(-1)}`
+          : cleanRut;
+        
+        const searchResponse = await fetch(
+          `${DENTALINK_API_URL}/pacientes?rut=${encodeURIComponent(normalizedRut)}`,
+          { method: 'GET', headers }
+        );
+        
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          if (searchData.data && searchData.data.length > 0) {
+            const patient = searchData.data[0];
+            return new Response(JSON.stringify({
+              success: true,
+              found: true,
+              patient: {
+                id: patient.id,
+                nombre: patient.nombre,
+                apellidos: patient.apellidos,
+                email: patient.email,
+                telefono: patient.telefono,
+                rut: normalizedRut,
+              },
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
+        
+        return new Response(JSON.stringify({
+          success: true,
+          found: false,
+          message: 'Paciente no encontrado en Dentalink',
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       
       if (body.action === 'create-patient' || action === 'create-patient') {
         console.log('Creating patient in Dentalink:', body.nombre);
