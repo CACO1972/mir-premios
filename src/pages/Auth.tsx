@@ -32,21 +32,8 @@ const Auth = () => {
     phone: null,
   });
 
-  // Format RUT for display (with dots)
-  const formatRutDisplay = (value: string) => {
-    const clean = value.replace(/[^0-9kK]/g, '').toUpperCase();
-    if (clean.length <= 1) return clean;
-    
-    const body = clean.slice(0, -1);
-    const verifier = clean.slice(-1);
-    
-    // Add dots for thousands
-    const formatted = body.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    return `${formatted}-${verifier}`;
-  };
-
-  // Normalize RUT for storage/API (without dots, with hyphen)
-  const normalizeRut = (value: string) => {
+  // Format RUT as user types (without dots, with hyphen only)
+  const formatRut = (value: string) => {
     const clean = value.replace(/[^0-9kK]/g, '').toUpperCase();
     if (clean.length <= 1) return clean;
     
@@ -55,8 +42,11 @@ const Auth = () => {
     return `${body}-${verifier}`;
   };
 
+  // Normalize RUT for storage/API (same format)
+  const normalizeRut = (value: string) => formatRut(value);
+
   const handleRutChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatRutDisplay(e.target.value);
+    const formatted = formatRut(e.target.value);
     setFormData(prev => ({ ...prev, rut: formatted }));
   };
 
@@ -267,11 +257,14 @@ const Auth = () => {
                     <Label htmlFor="rut">RUT</Label>
                     <Input
                       id="rut"
-                      placeholder="12.345.678-9"
+                      placeholder="17190250-9"
                       value={formData.rut}
                       onChange={handleRutChange}
-                      maxLength={12}
+                      maxLength={10}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Ingresa sin puntos, solo con guión. Ej: 17190250-9
+                    </p>
                   </div>
 
                   <Button
@@ -392,11 +385,14 @@ const Auth = () => {
                     <Label htmlFor="signup-rut">RUT</Label>
                     <Input
                       id="signup-rut"
-                      placeholder="12.345.678-9"
+                      placeholder="17190250-9"
                       value={formData.rut}
                       onChange={handleRutChange}
-                      maxLength={12}
+                      maxLength={10}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Sin puntos, solo con guión
+                    </p>
                   </div>
 
                   <div className="space-y-2">
